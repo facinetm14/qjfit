@@ -2,12 +2,15 @@ import express from 'express';
 import { pinoHttp } from 'pino-http';
 import type { Logger } from 'pino';
 import { createProfileRouter } from './api/routes/profile.route.js';
+import { createFetchRouter } from './api/routes/fetch.route.js';
+import type { CreateFetchRunService } from './core/services/create-fetch-run.service.js';
 import type { GetProfileService } from './core/services/get-profile.service.js';
 import type { UpsertProfileService } from './core/services/upsert-profile.service.js';
 
 interface AppDeps {
   getProfileService: GetProfileService;
   upsertProfileService: UpsertProfileService;
+  createFetchRunService: CreateFetchRunService;
 }
 
 export function createApp(logger: Logger, deps: AppDeps) {
@@ -21,6 +24,7 @@ export function createApp(logger: Logger, deps: AppDeps) {
   });
 
   app.use('/api', createProfileRouter(deps));
+  app.use('/api', createFetchRouter(deps));
 
   return app;
 }
