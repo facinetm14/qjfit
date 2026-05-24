@@ -1,0 +1,32 @@
+{
+  "name": "qjfit",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/api",
+    "apps/web",
+    "apps/shared"
+  ],
+  "scripts": {
+    "build": "npm run build:api && npm run build:web",
+    "build:api": "npm run build --workspace @qjfit/api",
+    "build:web": "npm run build --workspace @qjfit/web",
+    "dev:api": "npm run dev --workspace @qjfit/api",
+    "dev:web": "npm run dev --workspace @qjfit/web",
+    "test": "npm run test:api && npm run test:web",
+    "test:api": "npm run test --workspace @qjfit/api",
+    "test:web": "npm run test --workspace @qjfit/web",
+    "typecheck": "npm run typecheck:api && npm run typecheck:web",
+    "typecheck:api": "npm run typecheck --workspace @qjfit/api",
+    "typecheck:web": "npm run typecheck --workspace @qjfit/web",
+    "lint": "npm run lint:api && npm run lint:web",
+    "lint:api": "npm run lint --workspace @qjfit/api",
+    "lint:web": "npm run lint --workspace @qjfit/web"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0"
+  }
+}
