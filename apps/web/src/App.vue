@@ -2,26 +2,58 @@
   <div class="shell">
     <aside class="rail">
       <div class="logo">QJFit</div>
-      <button class="rail-btn active" aria-label="Profile">
-        <span>◌</span>
+      <button class="rail-btn" aria-label="Jobs">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 8h12M6 12h12M6 16h12" />
+        </svg>
       </button>
-      <button class="rail-btn" aria-label="Jobs"><span>≡</span></button>
-      <button class="rail-btn" aria-label="Settings"><span>⚙</span></button>
+      <button class="rail-btn active" aria-label="Profile">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="8.5" r="2.7" />
+          <path d="M6.8 17.6c.9-2.8 2.9-4.3 5.2-4.3s4.3 1.5 5.2 4.3" />
+        </svg>
+      </button>
+      <button class="rail-btn" aria-label="Settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="1.1" />
+          <circle cx="6.5" cy="12" r="1.1" />
+          <circle cx="17.5" cy="12" r="1.1" />
+        </svg>
+      </button>
+      <button class="rail-btn" aria-label="History">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="6.6" />
+          <path d="M12 8.8v3.6l2.2 1.4" />
+        </svg>
+      </button>
     </aside>
 
     <main class="content">
       <header class="topbar">
         <div>
           <h1>Your profile</h1>
-          <p>QJFit uses your profile to score and rank every offer.</p>
+          <p>JobRadar uses your profile to score and rank every offer.</p>
         </div>
-        <div class="badge">Parsed from CV</div>
       </header>
 
       <section class="grid">
         <article class="card cv-card">
-          <h2>CV upload</h2>
-          <div class="dropzone">Drop your CV here, or click to browse</div>
+          <h2>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 3.8h7.1L19 8.6v11.6H7z" />
+              <path d="M14.1 3.8v4.8H19" />
+            </svg>
+            <span>CV upload</span>
+          </h2>
+          <div class="dropzone">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 15V8.5" />
+              <path d="M9.6 10.9 12 8.5l2.4 2.4" />
+              <path d="M6.3 15.7A3.8 3.8 0 1 1 7 8.2a4.9 4.9 0 0 1 9.6 1.3 3.2 3.2 0 0 1 .3 6.3" />
+            </svg>
+            <strong>Drop your CV here, or <span>click to browse</span></strong>
+            <small>PDF or DOCX · max 5 MB</small>
+          </div>
           <pre class="cv-preview">{{ cvPreview }}</pre>
         </article>
 
@@ -273,6 +305,19 @@ const isLoading = computed(() => profileLoading.value);
   border: none;
   background: transparent;
   color: #8b93a3;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.rail-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .rail-btn.active {
@@ -281,33 +326,25 @@ const isLoading = computed(() => profileLoading.value);
 }
 
 .content {
-  padding: 28px;
+  padding: 22px 24px;
 }
 
 .topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 22px;
+  margin-bottom: 14px;
 }
 
 h1 {
   margin: 0;
-  font-size: 36px;
-  line-height: 1.05;
+  font-size: 38px;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
 }
 
 p {
   margin: 8px 0 0;
-  color: #8f95a2;
-}
-
-.badge {
-  background: #e8f4da;
-  color: #2f6f1f;
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-size: 14px;
+  color: #b4bcc7;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .grid {
@@ -317,8 +354,8 @@ p {
 }
 
 .card {
-  border: 1px solid #dcdfe4;
-  border-radius: 16px;
+  border: 1px solid #dbdee4;
+  border-radius: 14px;
   background: #fff;
   padding: 18px;
 }
@@ -329,28 +366,75 @@ p {
 }
 
 .cv-card {
-  min-height: 280px;
+  min-height: 300px;
+}
+
+.cv-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 30px;
+}
+
+.cv-card h2 svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: #8f969f;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .dropzone {
-  border: 1px dashed #cdd1d8;
+  border: 1px dashed #d2d7de;
   border-radius: 12px;
-  min-height: 80px;
+  min-height: 124px;
   display: grid;
   place-items: center;
   color: #72798a;
   margin-bottom: 14px;
+  text-align: center;
+  padding: 14px;
+}
+
+.dropzone svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: #c7ccd4;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  margin-bottom: 6px;
+}
+
+.dropzone strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #657083;
+}
+
+.dropzone strong span {
+  color: #5f6d82;
+}
+
+.dropzone small {
+  margin-top: 2px;
+  font-size: 13px;
+  color: #aab3bf;
 }
 
 .cv-preview {
-  background: #f8fafb;
-  border: 1px solid #dde3ea;
+  background: #f8f9fb;
+  border: 1px solid #dde1e7;
   border-radius: 10px;
   padding: 14px;
   line-height: 1.5;
-  color: #334155;
+  color: #5b6778;
   white-space: pre-wrap;
   font-size: 14px;
+  margin: 0;
 }
 
 .field {
