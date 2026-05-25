@@ -3,16 +3,16 @@ import { pinoHttp } from 'pino-http';
 import type { Logger } from 'pino';
 import { createProfileRouter } from './api/routes/profile.route.js';
 import { createFetchRouter } from './api/routes/fetch.route.js';
-import type { CreateFetchRunService } from './core/services/create-fetch-run.service.js';
-import type { ExecuteFetchRunLifecycleService } from './core/services/execute-fetch-run-lifecycle.service.js';
-import type { GetProfileService } from './core/services/get-profile.service.js';
-import type { UpsertProfileService } from './core/services/upsert-profile.service.js';
+import type { CreateFetchRunUseCase } from './application/usecases/fetch-runs/create-fetch-run.usecase.js';
+import type { ExecuteFetchRunLifecycleUseCase } from './application/usecases/fetch-runs/execute-fetch-run-lifecycle.usecase.js';
+import type { GetProfileUseCase } from './application/usecases/profile/get-profile.usecase.js';
+import type { UpsertProfileUseCase } from './application/usecases/profile/upsert-profile.usecase.js';
 
 interface AppDeps {
-  getProfileService: GetProfileService;
-  upsertProfileService: UpsertProfileService;
-  createFetchRunService: CreateFetchRunService;
-  executeFetchRunLifecycleService: ExecuteFetchRunLifecycleService;
+  getProfileService: GetProfileUseCase;
+  upsertProfileService: UpsertProfileUseCase;
+  createFetchRunService: CreateFetchRunUseCase;
+  executeFetchRunLifecycleService: ExecuteFetchRunLifecycleUseCase;
 }
 
 export function createApp(logger: Logger, deps: AppDeps) {

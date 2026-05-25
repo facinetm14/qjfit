@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
-import type { Job } from "../../core/jobs/job.entity.js";
-import type { NormalizedJobInput } from "../../core/jobs/normalized-job.entity.js";
-import type { JobsRepositoryPort } from "../../core/ports/driven/jobs-repository.port.js";
+import type { Job } from "../../domain/jobs/job.entity.js";
+import type { NormalizedJobInput } from "../../domain/jobs/normalized-job.entity.js";
+import type { JobsRepositoryPort } from "../../application/ports/output/jobs-repository.port.js";
 
 export class PrismaJobsRepository implements JobsRepositoryPort {
   constructor(private readonly prisma: PrismaClient) {}

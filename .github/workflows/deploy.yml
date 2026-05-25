@@ -1,34 +1,58 @@
-name: Deploy
+name: Deploy (Railway)
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["CI"]
+    branches: ["main"]
+    types: [completed]
 
 jobs:
-  build-and-push:
+  deploy:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
+    concurrency:
+      group: railway-production
+      cancel-in-progress: true
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push API image
-        run: |
-          docker build -f apps/api/Dockerfile -t ghcr.io/facinetm14/QJFit-api:${GITHUB_SHA} .
-          docker push ghcr.io/facinetm14/QJFit-api:${GITHUB_SHA}
-      - name: Build and push Web image
-        run: |
-          docker build -f apps/web/Dockerfile -t ghcr.io/facinetm14/QJFit-web:${GITHUB_SHA} .
-          docker push ghcr.io/facinetm14/QJFit-web:${GITHUB_SHA}
 
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: Placeholder deploy instructions
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Railway CLI deploys the code snapshot to the target Project+Environment+Service.
+      # Set RAILWAY_TOKEN to a Railway Project Token (scoped to the prod environment).
+      - name: Deploy API (Railway)
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT: production
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_API_ID }}
         run: |
-          echo "On target host, pull compose and run:"
-          echo "npx prisma migrate deploy"
-          echo "docker compose -f docker-compose.prod.yml up -d"
+          npx -y @railway/cli up apps/api \
+            --ci \
+            --detach \
+            --path-as-root \
+            --project "$RAILWAY_PROJECT_ID" \
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --service "$RAILWAY_SERVICE_ID"
+
+      - name: Deploy Web (Railway)
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT: production
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_WEB_ID }}
+        run: |
+          npx -y @railway/cli up apps/web \
+            --ci \
+            --detach \
+            --path-as-root \
+            --project "$RAILWAY_PROJECT_ID" \
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --service "$RAILWAY_SERVICE_ID"

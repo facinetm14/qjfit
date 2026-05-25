@@ -2,21 +2,21 @@ import express from "express";
 import pino from "pino";
 import request from "supertest";
 import { createFetchRouter } from "./fetch.route.js";
-import { CreateFetchRunService } from "../../core/services/create-fetch-run.service.js";
-import { ExecuteFetchRunLifecycleService } from "../../core/services/execute-fetch-run-lifecycle.service.js";
-import type { CreateFetchLogInput } from "../../core/ports/driven/fetch-logs-repository.port.js";
-import type { FetchLogsRepositoryPort } from "../../core/ports/driven/fetch-logs-repository.port.js";
-import type { FetchRunsRepositoryPort } from "../../core/ports/driven/fetch-runs-repository.port.js";
-import type { FetchSourcePort } from "../../core/ports/driven/fetch-source.port.js";
+import { CreateFetchRunUseCase } from "../../application/usecases/fetch-runs/create-fetch-run.usecase.js";
+import { ExecuteFetchRunLifecycleUseCase } from "../../application/usecases/fetch-runs/execute-fetch-run-lifecycle.usecase.js";
+import type { CreateFetchLogInput } from "../../application/ports/output/fetch-logs-repository.port.js";
+import type { FetchLogsRepositoryPort } from "../../application/ports/output/fetch-logs-repository.port.js";
+import type { FetchRunsRepositoryPort } from "../../application/ports/output/fetch-runs-repository.port.js";
+import type { FetchSourcePort } from "../../application/ports/output/fetch-source.port.js";
 import type {
   FetchLog,
   FetchRun,
-} from "../../core/fetch-runs/fetch-run.entity.js";
-import type { RawJob } from "../../core/sources/raw-job.entity.js";
+} from "../../domain/fetch-runs/fetch-run.entity.js";
+import type { RawJob } from "../../domain/sources/raw-job.entity.js";
 import type {
   NormalizeAndPersistJobsPort,
   NormalizePersistResult,
-} from "../../core/services/normalize-and-persist-jobs.service.js";
+} from "../../application/usecases/jobs/normalize-and-persist-jobs.usecase.js";
 
 const canBindLocalPort = process.env.ALLOW_LOCAL_BIND === "1";
 const maybeIt = canBindLocalPort ? it : it.skip;
@@ -122,8 +122,8 @@ function buildApp(
   app.use(
     "/api",
     createFetchRouter(logger, {
-      createFetchRunService: new CreateFetchRunService(repository),
-      executeFetchRunLifecycleService: new ExecuteFetchRunLifecycleService(
+      createFetchRunService: new CreateFetchRunUseCase(repository),
+      executeFetchRunLifecycleService: new ExecuteFetchRunLifecycleUseCase(
         repository,
         logsRepository,
         sources,

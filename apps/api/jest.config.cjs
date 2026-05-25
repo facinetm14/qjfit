@@ -12,7 +12,8 @@ module.exports = {
       'ts-jest',
       {
         useESM: true,
-        tsconfig: path.join(__dirname, 'tsconfig.json')
+        tsconfig: path.join(__dirname, 'tsconfig.json'),
+        diagnostics: { ignoreCodes: [151002] }
       }
     ]
   },

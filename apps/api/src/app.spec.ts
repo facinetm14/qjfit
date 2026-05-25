@@ -1,20 +1,24 @@
 import request from "supertest";
 import pino from "pino";
 import { createApp } from "./app";
-import { GetProfileService } from "./core/services/get-profile.service.js";
-import { UpsertProfileService } from "./core/services/upsert-profile.service.js";
-import { CreateFetchRunService } from "./core/services/create-fetch-run.service.js";
-import { ExecuteFetchRunLifecycleService } from "./core/services/execute-fetch-run-lifecycle.service.js";
-import type { CreateFetchLogInput } from "./core/ports/driven/fetch-logs-repository.port.js";
-import type { FetchLogsRepositoryPort } from "./core/ports/driven/fetch-logs-repository.port.js";
-import type { ProfileRepositoryPort } from "./core/ports/driven/profile-repository.port.js";
-import type { FetchRunsRepositoryPort } from "./core/ports/driven/fetch-runs-repository.port.js";
+import { GetProfileUseCase } from "./application/usecases/profile/get-profile.usecase.js";
+import { UpsertProfileUseCase } from "./application/usecases/profile/upsert-profile.usecase.js";
+import { CreateFetchRunUseCase } from "./application/usecases/fetch-runs/create-fetch-run.usecase.js";
+import { ExecuteFetchRunLifecycleUseCase } from "./application/usecases/fetch-runs/execute-fetch-run-lifecycle.usecase.js";
+import type { CreateFetchLogInput } from "./application/ports/output/fetch-logs-repository.port.js";
+import type { FetchLogsRepositoryPort } from "./application/ports/output/fetch-logs-repository.port.js";
+import type { ProfileRepositoryPort } from "./application/ports/output/profile-repository.port.js";
+import type { FetchRunsRepositoryPort } from "./application/ports/output/fetch-runs-repository.port.js";
 import type {
   Profile,
-import type { NormalizePersistResult } from './core/services/normalize-and-persist-jobs.service.js';
   UpsertProfileInput,
-} from "./core/profile/profile.entity.js";
-import type { FetchLog, FetchRun } from "./core/fetch-runs/fetch-run.entity.js";
+} from "./domain/profile/profile.entity.js";
+import type { FetchLog, FetchRun } from "./domain/fetch-runs/fetch-run.entity.js";
+import type { RawJob } from "./domain/sources/raw-job.entity.js";
+import type {
+  NormalizeAndPersistJobsPort,
+  NormalizePersistResult,
+} from "./application/usecases/jobs/normalize-and-persist-jobs.usecase.js";
 
 const canBindLocalPort = process.env.ALLOW_LOCAL_BIND === "1";
 const maybeIt = canBindLocalPort ? it : it.skip;
@@ -77,12 +81,6 @@ class FakeFetchRunsRepository implements FetchRunsRepositoryPort {
       startedAt: endedAt,
       endedAt,
       createdAt: endedAt,
-      }
-
-      class FakeNormalizeAndPersistJobsService {
-        async execute(): Promise<NormalizePersistResult> {
-        return { created: 0, skipped: 0 };
-        }
       updatedAt: endedAt,
     };
   }
@@ -96,10 +94,15 @@ class FakeFetchLogsRepository implements FetchLogsRepositoryPort {
       source: input.source,
       status: input.status,
       message: input.message,
-              [],
-              new FakeNormalizeAndPersistJobsService()
+      fetched: input.fetched,
       createdAt: new Date("2026-05-24T00:00:00.000Z"),
     };
+  }
+}
+
+class FakeNormalizeAndPersistJobsService implements NormalizeAndPersistJobsPort {
+  async execute(_rawJobs: readonly RawJob[]): Promise<NormalizePersistResult> {
+    return { created: 0, skipped: 0 };
   }
 }
 
@@ -108,17 +111,17 @@ describe("createApp", () => {
     const logger = pino({ enabled: false });
     const profileRepo = new FakeProfileRepository();
     const app = createApp(logger, {
-      getProfileService: new GetProfileService(profileRepo),
-      upsertProfileService: new UpsertProfileService(profileRepo),
-      createFetchRunService: new CreateFetchRunService(
+      getProfileService: new GetProfileUseCase(profileRepo),
+      upsertProfileService: new UpsertProfileUseCase(profileRepo),
+      createFetchRunService: new CreateFetchRunUseCase(
         new FakeFetchRunsRepository(),
       ),
-      executeFetchRunLifecycleService: new ExecuteFetchRunLifecycleService(
+      executeFetchRunLifecycleService: new ExecuteFetchRunLifecycleUseCase(
         new FakeFetchRunsRepository(),
         new FakeFetchLogsRepository(),
         [],
-              [],
-              new FakeNormalizeAndPersistJobsService()
+        new FakeNormalizeAndPersistJobsService(),
+      ),
     });
 
     const response = await request(app).get("/health");
@@ -131,15 +134,16 @@ describe("createApp", () => {
     const logger = pino({ enabled: false });
     const profileRepo = new FakeProfileRepository();
     const app = createApp(logger, {
-      getProfileService: new GetProfileService(profileRepo),
-      upsertProfileService: new UpsertProfileService(profileRepo),
-      createFetchRunService: new CreateFetchRunService(
+      getProfileService: new GetProfileUseCase(profileRepo),
+      upsertProfileService: new UpsertProfileUseCase(profileRepo),
+      createFetchRunService: new CreateFetchRunUseCase(
         new FakeFetchRunsRepository(),
       ),
-      executeFetchRunLifecycleService: new ExecuteFetchRunLifecycleService(
+      executeFetchRunLifecycleService: new ExecuteFetchRunLifecycleUseCase(
         new FakeFetchRunsRepository(),
         new FakeFetchLogsRepository(),
         [],
+        new FakeNormalizeAndPersistJobsService(),
       ),
     });
 

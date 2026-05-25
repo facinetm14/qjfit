@@ -12,3 +12,4 @@ resources/*
 _bmad
 .github/agents/
 _bmad-output
+*.http

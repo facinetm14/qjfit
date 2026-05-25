@@ -2,8 +2,8 @@ import type { PrismaClient } from "@prisma/client";
 import type {
   CreateFetchLogInput,
   FetchLogsRepositoryPort,
-} from "../../core/ports/driven/fetch-logs-repository.port.js";
-import type { FetchLog } from "../../core/fetch-runs/fetch-run.entity.js";
+} from "../../application/ports/output/fetch-logs-repository.port.js";
+import type { FetchLog } from "../../domain/fetch-runs/fetch-run.entity.js";
 
 export class PrismaFetchLogsRepository implements FetchLogsRepositoryPort {
   constructor(private readonly prisma: PrismaClient) {}

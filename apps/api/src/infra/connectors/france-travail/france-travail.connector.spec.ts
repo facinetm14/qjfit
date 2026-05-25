@@ -1,11 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { FranceTravailConnector } from "./france-travail.connector.js";
 
 const fixturesDir = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
+  process.cwd(),
+  "src",
+  "infra",
+  "connectors",
   "fixtures",
   "france-travail",
 );

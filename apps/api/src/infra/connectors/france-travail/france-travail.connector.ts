@@ -2,8 +2,8 @@ import { z } from "zod";
 import type {
   FetchSourcePort,
   FetchSourceResult,
-} from "../../../core/ports/driven/fetch-source.port.js";
-import type { RawJob } from "../../../core/sources/raw-job.entity.js";
+} from "../../../application/ports/output/fetch-source.port.js";
+import type { RawJob } from "../../../domain/sources/raw-job.entity.js";
 
 type FetchResponse = {
   ok: boolean;
