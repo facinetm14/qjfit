@@ -13,6 +13,10 @@ import type {
   FetchRun,
 } from "../../core/fetch-runs/fetch-run.entity.js";
 import type { RawJob } from "../../core/sources/raw-job.entity.js";
+import type {
+  NormalizeAndPersistJobsPort,
+  NormalizePersistResult,
+} from "../../core/services/normalize-and-persist-jobs.service.js";
 
 const canBindLocalPort = process.env.ALLOW_LOCAL_BIND === "1";
 const maybeIt = canBindLocalPort ? it : it.skip;
@@ -100,10 +104,17 @@ class FakeFetchSource implements FetchSourcePort {
   }
 }
 
+class FakeNormalizeAndPersistJobsService implements NormalizeAndPersistJobsPort {
+  async execute(_rawJobs: readonly RawJob[]): Promise<NormalizePersistResult> {
+    return { created: 0, skipped: 0 };
+  }
+}
+
 function buildApp(
   repository: FetchRunsRepositoryPort = new FakeFetchRunsRepository(),
   logsRepository: FetchLogsRepositoryPort = new FakeFetchLogsRepository(),
   sources: readonly FetchSourcePort[] = [],
+  normalizeJobs = new FakeNormalizeAndPersistJobsService(),
 ) {
   const app = express();
   const logger = pino({ enabled: false });
@@ -116,6 +127,7 @@ function buildApp(
         repository,
         logsRepository,
         sources,
+        normalizeJobs,
       ),
     }),
   );

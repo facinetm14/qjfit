@@ -10,10 +10,12 @@ import { getPrismaClient } from "./infra/db/prisma-client.js";
 import { PrismaProfileRepository } from "./infra/repositories/prisma-profile.repository.js";
 import { PrismaFetchLogsRepository } from "./infra/repositories/prisma-fetch-logs.repository.js";
 import { PrismaFetchRunsRepository } from "./infra/repositories/prisma-fetch-runs.repository.js";
+import { PrismaJobsRepository } from "./infra/repositories/prisma-jobs.repository.js";
 import { UpsertProfileService } from "./core/services/upsert-profile.service.js";
 import { GetProfileService } from "./core/services/get-profile.service.js";
 import { CreateFetchRunService } from "./core/services/create-fetch-run.service.js";
 import { ExecuteFetchRunLifecycleService } from "./core/services/execute-fetch-run-lifecycle.service.js";
+import { NormalizeAndPersistJobsService } from "./core/services/normalize-and-persist-jobs.service.js";
 import type { FetchSourcePort } from "./core/ports/driven/fetch-source.port.js";
 
 interface BootstrapDeps {
@@ -57,7 +59,9 @@ export function bootstrap(deps: BootstrapDeps = {}): void {
   const profileRepository = new PrismaProfileRepository(prisma);
   const fetchLogsRepository = new PrismaFetchLogsRepository(prisma);
   const fetchRunsRepository = new PrismaFetchRunsRepository(prisma);
+  const jobsRepository = new PrismaJobsRepository(prisma);
   const fetchSources = deps.fetchSources ?? [];
+  const normalizeJobsService = new NormalizeAndPersistJobsService(jobsRepository);
 
   const app = createApp(logger, {
     getProfileService: new GetProfileService(profileRepository),
@@ -67,6 +71,7 @@ export function bootstrap(deps: BootstrapDeps = {}): void {
       fetchRunsRepository,
       fetchLogsRepository,
       fetchSources,
+      normalizeJobsService,
     ),
   });
 

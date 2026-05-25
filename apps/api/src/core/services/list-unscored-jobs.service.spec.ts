@@ -1,6 +1,7 @@
 import { ListUnscoredJobsService } from './list-unscored-jobs.service';
 import type { JobsRepositoryPort } from '../ports/driven/jobs-repository.port.js';
 import type { Job } from '../jobs/job.entity.js';
+import type { NormalizedJobInput } from '../jobs/normalized-job.entity.js';
 
 class FakeJobsRepository implements JobsRepositoryPort {
   async listUnscored(limit: number): Promise<readonly Job[]> {
@@ -21,6 +22,10 @@ class FakeJobsRepository implements JobsRepositoryPort {
         status: 'new' as const
       }
     ].slice(0, limit);
+  }
+
+  async createIfNotExists(_input: NormalizedJobInput): Promise<Job | null> {
+    return null;
   }
 }
 
