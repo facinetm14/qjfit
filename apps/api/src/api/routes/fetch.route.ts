@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import type { Logger } from 'pino';
-import type { CreateFetchRunService } from '../../core/services/create-fetch-run.service.js';
-import type { ExecuteFetchRunLifecycleService } from '../../core/services/execute-fetch-run-lifecycle.service.js';
+import type { CreateFetchRunUseCase } from '../../application/usecases/fetch-runs/create-fetch-run.usecase.js';
+import type { ExecuteFetchRunLifecycleUseCase } from '../../application/usecases/fetch-runs/execute-fetch-run-lifecycle.usecase.js';
 
 interface FetchRouteDeps {
-  createFetchRunService: CreateFetchRunService;
-  executeFetchRunLifecycleService: ExecuteFetchRunLifecycleService;
+  createFetchRunService: CreateFetchRunUseCase;
+  executeFetchRunLifecycleService: ExecuteFetchRunLifecycleUseCase;
 }
 
 export function createFetchRouter(logger: Logger, deps: FetchRouteDeps): Router {

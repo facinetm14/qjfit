@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import type { GetProfileService } from '../../core/services/get-profile.service.js';
-import type { UpsertProfileService } from '../../core/services/upsert-profile.service.js';
+import type { GetProfileUseCase } from '../../application/usecases/profile/get-profile.usecase.js';
+import type { UpsertProfileUseCase } from '../../application/usecases/profile/upsert-profile.usecase.js';
 
 const upsertProfileSchema = z.object({
   targetRole: z.string().min(1),
@@ -18,8 +18,8 @@ const upsertProfileSchema = z.object({
 });
 
 interface ProfileRouteDeps {
-  getProfileService: GetProfileService;
-  upsertProfileService: UpsertProfileService;
+  getProfileService: GetProfileUseCase;
+  upsertProfileService: UpsertProfileUseCase;
 }
 
 export function createProfileRouter(deps: ProfileRouteDeps): Router {

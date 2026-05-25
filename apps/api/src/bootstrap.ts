@@ -11,12 +11,12 @@ import { PrismaProfileRepository } from "./infra/repositories/prisma-profile.rep
 import { PrismaFetchLogsRepository } from "./infra/repositories/prisma-fetch-logs.repository.js";
 import { PrismaFetchRunsRepository } from "./infra/repositories/prisma-fetch-runs.repository.js";
 import { PrismaJobsRepository } from "./infra/repositories/prisma-jobs.repository.js";
-import { UpsertProfileService } from "./core/services/upsert-profile.service.js";
-import { GetProfileService } from "./core/services/get-profile.service.js";
-import { CreateFetchRunService } from "./core/services/create-fetch-run.service.js";
-import { ExecuteFetchRunLifecycleService } from "./core/services/execute-fetch-run-lifecycle.service.js";
-import { NormalizeAndPersistJobsService } from "./core/services/normalize-and-persist-jobs.service.js";
-import type { FetchSourcePort } from "./core/ports/driven/fetch-source.port.js";
+import { UpsertProfileUseCase } from "./application/usecases/profile/upsert-profile.usecase.js";
+import { GetProfileUseCase } from "./application/usecases/profile/get-profile.usecase.js";
+import { CreateFetchRunUseCase } from "./application/usecases/fetch-runs/create-fetch-run.usecase.js";
+import { ExecuteFetchRunLifecycleUseCase } from "./application/usecases/fetch-runs/execute-fetch-run-lifecycle.usecase.js";
+import { NormalizeAndPersistJobsUseCase } from "./application/usecases/jobs/normalize-and-persist-jobs.usecase.js";
+import type { FetchSourcePort } from "./application/ports/output/fetch-source.port.js";
 
 interface BootstrapDeps {
   readonly env?: NodeJS.ProcessEnv;
@@ -61,13 +61,13 @@ export function bootstrap(deps: BootstrapDeps = {}): void {
   const fetchRunsRepository = new PrismaFetchRunsRepository(prisma);
   const jobsRepository = new PrismaJobsRepository(prisma);
   const fetchSources = deps.fetchSources ?? [];
-  const normalizeJobsService = new NormalizeAndPersistJobsService(jobsRepository);
+  const normalizeJobsService = new NormalizeAndPersistJobsUseCase(jobsRepository);
 
   const app = createApp(logger, {
-    getProfileService: new GetProfileService(profileRepository),
-    upsertProfileService: new UpsertProfileService(profileRepository),
-    createFetchRunService: new CreateFetchRunService(fetchRunsRepository),
-    executeFetchRunLifecycleService: new ExecuteFetchRunLifecycleService(
+    getProfileService: new GetProfileUseCase(profileRepository),
+    upsertProfileService: new UpsertProfileUseCase(profileRepository),
+    createFetchRunService: new CreateFetchRunUseCase(fetchRunsRepository),
+    executeFetchRunLifecycleService: new ExecuteFetchRunLifecycleUseCase(
       fetchRunsRepository,
       fetchLogsRepository,
       fetchSources,

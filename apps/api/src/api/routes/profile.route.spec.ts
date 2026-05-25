@@ -1,10 +1,10 @@
 import express from 'express';
 import request from 'supertest';
 import { createProfileRouter } from './profile.route.js';
-import { GetProfileService } from '../../core/services/get-profile.service.js';
-import { UpsertProfileService } from '../../core/services/upsert-profile.service.js';
-import type { ProfileRepositoryPort } from '../../core/ports/driven/profile-repository.port.js';
-import type { Profile, UpsertProfileInput } from '../../core/profile/profile.entity.js';
+import { GetProfileUseCase } from '../../application/usecases/profile/get-profile.usecase.js';
+import { UpsertProfileUseCase } from '../../application/usecases/profile/upsert-profile.usecase.js';
+import type { ProfileRepositoryPort } from '../../application/ports/output/profile-repository.port.js';
+import type { Profile, UpsertProfileInput } from '../../domain/profile/profile.entity.js';
 
 const canBindLocalPort = process.env.ALLOW_LOCAL_BIND === '1';
 const maybeIt = canBindLocalPort ? it : it.skip;
@@ -32,8 +32,8 @@ function buildApp(repo: ProfileRepositoryPort) {
   const app = express();
   app.use(express.json());
   app.use('/api', createProfileRouter({
-    getProfileService: new GetProfileService(repo),
-    upsertProfileService: new UpsertProfileService(repo)
+    getProfileService: new GetProfileUseCase(repo),
+    upsertProfileService: new UpsertProfileUseCase(repo)
   }));
   return app;
 }

@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
-import type { Profile, UpsertProfileInput } from '../../core/profile/profile.entity.js';
-import type { ProfileRepositoryPort } from '../../core/ports/driven/profile-repository.port.js';
+import type { Profile, UpsertProfileInput } from '../../domain/profile/profile.entity.js';
+import type { ProfileRepositoryPort } from '../../application/ports/output/profile-repository.port.js';
 
 function toPrismaProfileInput(input: UpsertProfileInput) {
   return {
