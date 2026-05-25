@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>WTTJ Jobs</title>
+    <item>
+      <guid>WTTJ-100</guid>
+      <title>Frontend Developer</title>
+      <description>Build web interfaces.</description>
+      <link>https://wttj.example/jobs/wttj-100</link>
+      <pubDate>Mon, 05 May 2026 10:00:00 GMT</pubDate>
+      <company>WTTJ</company>
+      <location>Paris</location>
+    </item>
+  </channel>
+</rss>

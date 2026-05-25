@@ -1,5 +1,8 @@
 import type { Logger } from "pino";
 import type { PrismaClient } from "@prisma/client";
+import dotenv from "dotenv";
+import fs from "node:fs";
+import path from "node:path";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { createLogger } from "./logger.js";
@@ -22,6 +25,20 @@ interface BootstrapDeps {
 
 export function bootstrap(deps: BootstrapDeps = {}): void {
   const logger = deps.logger ?? createLogger();
+  if (!deps.env) {
+    const candidates = [
+      path.resolve(process.cwd(), ".env"),
+      path.resolve(process.cwd(), "..", ".env"),
+      path.resolve(process.cwd(), "..", "..", ".env"),
+    ];
+    const envPath = candidates.find((candidate) => fs.existsSync(candidate));
+    if (envPath) {
+      dotenv.config({ path: envPath });
+    } else {
+      dotenv.config();
+    }
+  }
+
   const env = deps.env ?? process.env;
 
   let config;

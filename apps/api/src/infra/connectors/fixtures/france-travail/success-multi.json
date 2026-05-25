@@ -1,0 +1,22 @@
+{
+  "resultats": [
+    {
+      "id": "FT-200",
+      "intitule": "Frontend Engineer",
+      "description": "Build UI components.",
+      "dateCreation": "2026-05-02T09:30:00.000Z",
+      "lieuTravail": { "libelle": "Lyon" },
+      "entreprise": { "nom": "Pixel" },
+      "origineOffre": { "urlOrigine": "https://example.com/jobs/ft-200" }
+    },
+    {
+      "id": "FT-201",
+      "intitule": "Fullstack Developer",
+      "description": "Build fullstack apps.",
+      "dateCreation": "2026-05-03T08:15:00.000Z",
+      "lieuTravail": { "libelle": "Remote" },
+      "entreprise": { "nom": "Nimbus" },
+      "origineOffre": { "urlOrigine": "https://example.com/jobs/ft-201" }
+    }
+  ]
+}

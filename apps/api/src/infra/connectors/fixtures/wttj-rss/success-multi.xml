@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>WTTJ Jobs</title>
+    <item>
+      <guid>WTTJ-110</guid>
+      <title>Backend Engineer</title>
+      <description>Build APIs.</description>
+      <link>https://wttj.example/jobs/wttj-110</link>
+      <pubDate>Tue, 06 May 2026 10:00:00 GMT</pubDate>
+      <company>WTTJ</company>
+      <location>Remote</location>
+    </item>
+    <item>
+      <guid>WTTJ-111</guid>
+      <title>Data Engineer</title>
+      <description>Data pipelines.</description>
+      <link>https://wttj.example/jobs/wttj-111</link>
+      <pubDate>Wed, 07 May 2026 10:00:00 GMT</pubDate>
+      <company>WTTJ Labs</company>
+      <location>Lyon</location>
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>WTTJ Jobs</title>
+    <item>
+      <guid>WTTJ-200</guid>
+      <title>Product Designer</title>
+      <description>Design flows.</description>
+      <link>https://wttj.example/jobs/wttj-200</link>
+      <pubDate>Thu, 08 May 2026 10:00:00 GMT</pubDate>
+      <company>WTTJ</company>
+      <location>Paris</location>
+    </item>
+    <item>
+      <guid>WTTJ-201</guid>
+      <description>Missing title and link.</description>
+    </item>
+  </channel>
+</rss>

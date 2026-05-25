@@ -1,5 +1,7 @@
+import type { RawJob } from "../../sources/raw-job.entity.js";
+
 export interface FetchSourceResult {
-  readonly fetched: number;
+  readonly jobs: readonly RawJob[];
 }
 
 export interface FetchSourcePort {
