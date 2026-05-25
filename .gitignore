@@ -9,3 +9,6 @@ coverage
 .agents/*
 plan.md
 resources/*
+_bmad
+.github/agents/
+_bmad-output
