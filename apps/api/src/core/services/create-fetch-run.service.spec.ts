@@ -14,6 +14,39 @@ class FakeFetchRunsRepository implements FetchRunsRepositoryPort {
       updatedAt: now
     };
   }
+
+  async markRunning(runId: string, startedAt: Date): Promise<FetchRun> {
+    return {
+      id: runId,
+      status: 'running',
+      startedAt,
+      endedAt: null,
+      createdAt: startedAt,
+      updatedAt: startedAt
+    };
+  }
+
+  async markCompleted(runId: string, endedAt: Date): Promise<FetchRun> {
+    return {
+      id: runId,
+      status: 'completed',
+      startedAt: endedAt,
+      endedAt,
+      createdAt: endedAt,
+      updatedAt: endedAt
+    };
+  }
+
+  async markFailed(runId: string, endedAt: Date): Promise<FetchRun> {
+    return {
+      id: runId,
+      status: 'failed',
+      startedAt: endedAt,
+      endedAt,
+      createdAt: endedAt,
+      updatedAt: endedAt
+    };
+  }
 }
 
 describe('CreateFetchRunService', () => {
