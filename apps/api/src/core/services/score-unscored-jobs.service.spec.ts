@@ -25,6 +25,7 @@ function buildJob(id: string): Job {
 
 class FakeJobsRepository implements JobsRepositoryPort {
   public lastLimit: number | null = null;
+  public readonly failedScores: string[] = [];
   constructor(private readonly jobs: readonly Job[]) {}
 
   async listUnscored(limit: number): Promise<readonly Job[]> {
@@ -34,6 +35,10 @@ class FakeJobsRepository implements JobsRepositoryPort {
 
   async createIfNotExists(): Promise<Job | null> {
     return null;
+  }
+
+  async markScoreFailed(jobId: string): Promise<void> {
+    this.failedScores.push(jobId);
   }
 }
 
@@ -102,5 +107,36 @@ describe("ScoreUnscoredJobsService", () => {
 
     expect(maxInFlight).toBeLessThanOrEqual(5);
     expect(scoringRepo.saved).toHaveLength(12);
+  });
+
+  it("marks score_failed on invalid payload and continues", async () => {
+    const jobs = [buildJob("1"), buildJob("2")];
+    const repo = new FakeJobsRepository(jobs);
+    const scorer: ScoringProviderPort = {
+      async score(job) {
+        if (job.id === "1") {
+          return { bad: true } as unknown as ScoreResult;
+        }
+
+        return {
+          jobId: job.id,
+          score: 90,
+          summary: "summary",
+          matchReasons: [],
+          missingSkills: [],
+          seniorityFit: "ok",
+          redFlags: [],
+          rawResponse: {},
+        };
+      },
+    };
+    const scoringRepo = new FakeScoringRepository();
+    const service = new ScoreUnscoredJobsService(repo, scorer, scoringRepo, 2);
+
+    await service.execute(2);
+
+    expect(repo.failedScores).toEqual(["1"]);
+    expect(scoringRepo.saved).toHaveLength(1);
+    expect(scoringRepo.saved[0]?.jobId).toBe("2");
   });
 });

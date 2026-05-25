@@ -1,7 +1,9 @@
+import type { Logger } from "pino";
 import type { Job } from "../jobs/job.entity.js";
 import type { JobsRepositoryPort } from "../ports/driven/jobs-repository.port.js";
 import type { ScoringProviderPort } from "../ports/driven/scoring-provider.port.js";
 import type { ScoringRepositoryPort } from "../ports/driven/scoring-repository.port.js";
+import { parseScoreResult } from "../scoring/score.schema.js";
 
 const DEFAULT_UNSCORED_LIMIT = 50;
 const DEFAULT_CONCURRENCY = 5;
@@ -12,14 +14,24 @@ export class ScoreUnscoredJobsService {
     private readonly scoringProvider: ScoringProviderPort,
     private readonly scoringRepository: ScoringRepositoryPort,
     private readonly concurrency = DEFAULT_CONCURRENCY,
+    private readonly logger?: Logger,
   ) {}
 
   async execute(limit = DEFAULT_UNSCORED_LIMIT): Promise<void> {
     const safeLimit = Math.max(1, Math.min(limit, 200));
     const jobs = await this.jobsRepository.listUnscored(safeLimit);
     await this.runWithConcurrency(jobs, this.concurrency, async (job) => {
-      const score = await this.scoringProvider.score(job);
-      await this.scoringRepository.save(score);
+      try {
+        const rawScore = await this.scoringProvider.score(job);
+        const score = parseScoreResult(rawScore);
+        await this.scoringRepository.save(score);
+      } catch (error) {
+        await this.jobsRepository.markScoreFailed(job.id);
+        this.logger?.error(
+          { err: error, jobId: job.id },
+          "Failed to validate score payload",
+        );
+      }
     });
   }
 

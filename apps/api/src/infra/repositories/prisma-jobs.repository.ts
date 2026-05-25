@@ -1,7 +1,7 @@
-import type { PrismaClient } from '@prisma/client';
-import type { Job } from '../../core/jobs/job.entity.js';
-import type { NormalizedJobInput } from '../../core/jobs/normalized-job.entity.js';
-import type { JobsRepositoryPort } from '../../core/ports/driven/jobs-repository.port.js';
+import type { PrismaClient } from "@prisma/client";
+import type { Job } from "../../core/jobs/job.entity.js";
+import type { NormalizedJobInput } from "../../core/jobs/normalized-job.entity.js";
+import type { JobsRepositoryPort } from "../../core/ports/driven/jobs-repository.port.js";
 
 export class PrismaJobsRepository implements JobsRepositoryPort {
   constructor(private readonly prisma: PrismaClient) {}
@@ -9,14 +9,14 @@ export class PrismaJobsRepository implements JobsRepositoryPort {
   async listUnscored(limit: number): Promise<readonly Job[]> {
     return this.prisma.job.findMany({
       where: { score: null },
-      orderBy: { fetchedAt: 'desc' },
-      take: limit
+      orderBy: { fetchedAt: "desc" },
+      take: limit,
     });
   }
 
   async createIfNotExists(input: NormalizedJobInput): Promise<Job | null> {
     const existing = await this.prisma.job.findFirst({
-      where: { dedupKey: input.dedupKey }
+      where: { dedupKey: input.dedupKey },
     });
 
     if (existing) {
@@ -35,8 +35,15 @@ export class PrismaJobsRepository implements JobsRepositoryPort {
         source: input.source,
         sourceJobId: input.sourceJobId,
         dedupKey: input.dedupKey,
-        fetchedAt: input.fetchedAt
-      }
+        fetchedAt: input.fetchedAt,
+      },
+    });
+  }
+
+  async markScoreFailed(jobId: string): Promise<void> {
+    await this.prisma.job.update({
+      where: { id: jobId },
+      data: { status: "score_failed" },
     });
   }
 }

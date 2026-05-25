@@ -33,6 +33,10 @@ class FakeJobsRepository implements JobsRepositoryPort {
       status: "new",
     };
   }
+
+  async markScoreFailed(): Promise<void> {
+    return;
+  }
 }
 
 describe("NormalizeAndPersistJobsService", () => {
