@@ -1,7 +1,8 @@
-import type { Job } from '../../jobs/job.entity.js';
-import type { NormalizedJobInput } from '../../jobs/normalized-job.entity.js';
+import type { Job } from "../../jobs/job.entity.js";
+import type { NormalizedJobInput } from "../../jobs/normalized-job.entity.js";
 
 export interface JobsRepositoryPort {
   listUnscored(limit: number): Promise<readonly Job[]>;
   createIfNotExists(input: NormalizedJobInput): Promise<Job | null>;
+  markScoreFailed(jobId: string): Promise<void>;
 }
