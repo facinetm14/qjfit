@@ -11,6 +11,7 @@ import type { ProfileRepositoryPort } from "./core/ports/driven/profile-reposito
 import type { FetchRunsRepositoryPort } from "./core/ports/driven/fetch-runs-repository.port.js";
 import type {
   Profile,
+import type { NormalizePersistResult } from './core/services/normalize-and-persist-jobs.service.js';
   UpsertProfileInput,
 } from "./core/profile/profile.entity.js";
 import type { FetchLog, FetchRun } from "./core/fetch-runs/fetch-run.entity.js";
@@ -76,6 +77,12 @@ class FakeFetchRunsRepository implements FetchRunsRepositoryPort {
       startedAt: endedAt,
       endedAt,
       createdAt: endedAt,
+      }
+
+      class FakeNormalizeAndPersistJobsService {
+        async execute(): Promise<NormalizePersistResult> {
+        return { created: 0, skipped: 0 };
+        }
       updatedAt: endedAt,
     };
   }
@@ -89,7 +96,8 @@ class FakeFetchLogsRepository implements FetchLogsRepositoryPort {
       source: input.source,
       status: input.status,
       message: input.message,
-      fetched: input.fetched,
+              [],
+              new FakeNormalizeAndPersistJobsService()
       createdAt: new Date("2026-05-24T00:00:00.000Z"),
     };
   }
@@ -109,7 +117,8 @@ describe("createApp", () => {
         new FakeFetchRunsRepository(),
         new FakeFetchLogsRepository(),
         [],
-      ),
+              [],
+              new FakeNormalizeAndPersistJobsService()
     });
 
     const response = await request(app).get("/health");

@@ -1,6 +1,7 @@
 import type { FetchLogsRepositoryPort } from "../ports/driven/fetch-logs-repository.port.js";
 import type { FetchRunsRepositoryPort } from "../ports/driven/fetch-runs-repository.port.js";
 import type { FetchSourcePort } from "../ports/driven/fetch-source.port.js";
+import type { NormalizeAndPersistJobsPort } from "./normalize-and-persist-jobs.service.js";
 
 function toErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -15,6 +16,7 @@ export class ExecuteFetchRunLifecycleService {
     private readonly fetchRunsRepository: FetchRunsRepositoryPort,
     private readonly fetchLogsRepository: FetchLogsRepositoryPort,
     private readonly fetchSources: readonly FetchSourcePort[],
+    private readonly normalizeAndPersistJobsService: NormalizeAndPersistJobsPort,
   ) {}
 
   async execute(runId: string): Promise<void> {
@@ -37,6 +39,7 @@ export class ExecuteFetchRunLifecycleService {
     for (const source of this.fetchSources) {
       try {
         const result = await source.fetch(runId);
+        await this.normalizeAndPersistJobsService.execute(result.jobs);
         await this.fetchLogsRepository.create({
           runId,
           source: source.source,

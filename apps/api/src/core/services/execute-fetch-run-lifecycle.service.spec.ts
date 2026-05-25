@@ -5,6 +5,10 @@ import type { FetchRunsRepositoryPort } from "../ports/driven/fetch-runs-reposit
 import type { FetchSourcePort } from "../ports/driven/fetch-source.port.js";
 import type { FetchLog, FetchRun } from "../fetch-runs/fetch-run.entity.js";
 import type { RawJob } from "../sources/raw-job.entity.js";
+import type {
+  NormalizeAndPersistJobsPort,
+  NormalizePersistResult,
+} from "./normalize-and-persist-jobs.service.js";
 
 class FakeFetchRunsRepository implements FetchRunsRepositoryPort {
   public readonly calls: string[] = [];
@@ -94,11 +98,26 @@ class FakeFetchSource implements FetchSourcePort {
   }
 }
 
+class FakeNormalizeAndPersistJobsService implements NormalizeAndPersistJobsPort {
+  public readonly batches: RawJob[][] = [];
+
+  async execute(rawJobs: readonly RawJob[]): Promise<NormalizePersistResult> {
+    this.batches.push([...rawJobs]);
+    return { created: rawJobs.length, skipped: 0 };
+  }
+}
+
 describe("ExecuteFetchRunLifecycleService", () => {
   it("marks run as running then completed", async () => {
     const repo = new FakeFetchRunsRepository();
     const logs = new FakeFetchLogsRepository();
-    const service = new ExecuteFetchRunLifecycleService(repo, logs, []);
+    const normalize = new FakeNormalizeAndPersistJobsService();
+    const service = new ExecuteFetchRunLifecycleService(
+      repo,
+      logs,
+      [],
+      normalize,
+    );
 
     await service.execute("run-1");
 
@@ -108,7 +127,13 @@ describe("ExecuteFetchRunLifecycleService", () => {
   it("propagates failure when run cannot start", async () => {
     const repo = new FakeFetchRunsRepository(true);
     const logs = new FakeFetchLogsRepository();
-    const service = new ExecuteFetchRunLifecycleService(repo, logs, []);
+    const normalize = new FakeNormalizeAndPersistJobsService();
+    const service = new ExecuteFetchRunLifecycleService(
+      repo,
+      logs,
+      [],
+      normalize,
+    );
 
     await expect(service.execute("run-1")).rejects.toThrow("boom");
     expect(repo.calls).toEqual(["running"]);
@@ -117,6 +142,7 @@ describe("ExecuteFetchRunLifecycleService", () => {
   it("continues when one source fails and logs per source", async () => {
     const repo = new FakeFetchRunsRepository();
     const logs = new FakeFetchLogsRepository();
+    const normalize = new FakeNormalizeAndPersistJobsService();
     const sources: FetchSourcePort[] = [
       new FakeFetchSource("alpha", async () => [
         {
@@ -157,7 +183,12 @@ describe("ExecuteFetchRunLifecycleService", () => {
         throw new Error("rate limited");
       }),
     ];
-    const service = new ExecuteFetchRunLifecycleService(repo, logs, sources);
+    const service = new ExecuteFetchRunLifecycleService(
+      repo,
+      logs,
+      sources,
+      normalize,
+    );
 
     await service.execute("run-1");
 
@@ -178,5 +209,7 @@ describe("ExecuteFetchRunLifecycleService", () => {
         fetched: 0,
       },
     ]);
+    expect(normalize.batches).toHaveLength(1);
+    expect(normalize.batches[0]).toHaveLength(3);
   });
 });
