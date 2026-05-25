@@ -12,6 +12,7 @@ import type {
   FetchLog,
   FetchRun,
 } from "../../core/fetch-runs/fetch-run.entity.js";
+import type { RawJob } from "../../core/sources/raw-job.entity.js";
 
 const canBindLocalPort = process.env.ALLOW_LOCAL_BIND === "1";
 const maybeIt = canBindLocalPort ? it : it.skip;
@@ -90,12 +91,12 @@ class FakeFetchLogsRepository implements FetchLogsRepositoryPort {
 class FakeFetchSource implements FetchSourcePort {
   constructor(
     public readonly source: string,
-    private readonly handler: () => Promise<number>,
+    private readonly handler: () => Promise<readonly RawJob[]>,
   ) {}
 
-  async fetch(_runId: string): Promise<{ fetched: number }> {
-    const fetched = await this.handler();
-    return { fetched };
+  async fetch(_runId: string): Promise<{ jobs: readonly RawJob[] }> {
+    const jobs = await this.handler();
+    return { jobs };
   }
 }
 
@@ -147,7 +148,30 @@ describe("fetch routes", () => {
   maybeIt("POST /api/fetch logs mixed source outcomes", async () => {
     const logsRepository = new FakeFetchLogsRepository();
     const sources: FetchSourcePort[] = [
-      new FakeFetchSource("alpha", async () => 2),
+      new FakeFetchSource("alpha", async () => [
+        {
+          source: "alpha",
+          sourceJobId: "a-1",
+          title: "Title",
+          company: "Company",
+          location: "Paris",
+          description: "Desc",
+          url: "https://example.com/a-1",
+          publishedAt: null,
+          raw: {},
+        },
+        {
+          source: "alpha",
+          sourceJobId: "a-2",
+          title: "Title",
+          company: "Company",
+          location: "Paris",
+          description: "Desc",
+          url: "https://example.com/a-2",
+          publishedAt: null,
+          raw: {},
+        },
+      ]),
       new FakeFetchSource("beta", async () => {
         throw new Error("boom");
       }),

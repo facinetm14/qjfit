@@ -1,0 +1,11 @@
+{
+  "resultats": [
+    {
+      "id": "FT-300",
+      "intitule": "Data Engineer",
+      "dateCreation": "2026-05-04T10:10:00.000Z",
+      "lieuTravail": { "libelle": "Marseille" },
+      "origineOffre": { "urlOrigine": "https://example.com/jobs/ft-300" }
+    }
+  ]
+}

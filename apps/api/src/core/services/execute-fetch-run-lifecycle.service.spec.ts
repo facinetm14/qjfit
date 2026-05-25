@@ -4,6 +4,7 @@ import type { FetchLogsRepositoryPort } from "../ports/driven/fetch-logs-reposit
 import type { FetchRunsRepositoryPort } from "../ports/driven/fetch-runs-repository.port.js";
 import type { FetchSourcePort } from "../ports/driven/fetch-source.port.js";
 import type { FetchLog, FetchRun } from "../fetch-runs/fetch-run.entity.js";
+import type { RawJob } from "../sources/raw-job.entity.js";
 
 class FakeFetchRunsRepository implements FetchRunsRepositoryPort {
   public readonly calls: string[] = [];
@@ -84,12 +85,12 @@ class FakeFetchLogsRepository implements FetchLogsRepositoryPort {
 class FakeFetchSource implements FetchSourcePort {
   constructor(
     public readonly source: string,
-    private readonly handler: () => Promise<number>,
+    private readonly handler: () => Promise<readonly RawJob[]>,
   ) {}
 
-  async fetch(_runId: string): Promise<{ fetched: number }> {
-    const fetched = await this.handler();
-    return { fetched };
+  async fetch(_runId: string): Promise<{ jobs: readonly RawJob[] }> {
+    const jobs = await this.handler();
+    return { jobs };
   }
 }
 
@@ -117,7 +118,41 @@ describe("ExecuteFetchRunLifecycleService", () => {
     const repo = new FakeFetchRunsRepository();
     const logs = new FakeFetchLogsRepository();
     const sources: FetchSourcePort[] = [
-      new FakeFetchSource("alpha", async () => 3),
+      new FakeFetchSource("alpha", async () => [
+        {
+          source: "alpha",
+          sourceJobId: "a-1",
+          title: "Title",
+          company: "Company",
+          location: "Paris",
+          description: "Desc",
+          url: "https://example.com/a-1",
+          publishedAt: null,
+          raw: {},
+        },
+        {
+          source: "alpha",
+          sourceJobId: "a-2",
+          title: "Title 2",
+          company: "Company",
+          location: "Paris",
+          description: "Desc",
+          url: "https://example.com/a-2",
+          publishedAt: null,
+          raw: {},
+        },
+        {
+          source: "alpha",
+          sourceJobId: "a-3",
+          title: "Title 3",
+          company: "Company",
+          location: "Paris",
+          description: "Desc",
+          url: "https://example.com/a-3",
+          publishedAt: null,
+          raw: {},
+        },
+      ]),
       new FakeFetchSource("beta", async () => {
         throw new Error("rate limited");
       }),

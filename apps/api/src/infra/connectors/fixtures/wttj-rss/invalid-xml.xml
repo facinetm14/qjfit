@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>WTTJ Jobs</title>
+    <item>
+      <guid>WTTJ-300</guid>
+      <title>QA Engineer</title>
+      <link>https://wttj.example/jobs/wttj-300</link>
+    </item>
+  </channel>
+</rss

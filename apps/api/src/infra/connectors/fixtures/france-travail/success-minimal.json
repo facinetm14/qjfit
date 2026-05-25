@@ -1,0 +1,13 @@
+{
+  "resultats": [
+    {
+      "id": "FT-123",
+      "intitule": "Backend Developer",
+      "description": "Build APIs for job seekers.",
+      "dateCreation": "2026-05-01T10:00:00.000Z",
+      "lieuTravail": { "libelle": "Paris" },
+      "entreprise": { "nom": "Acme" },
+      "origineOffre": { "urlOrigine": "https://example.com/jobs/ft-123" }
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-qjfit.tech, localhost {
+qjfit, localhost {
   encode zstd gzip
 
   handle_path /api/* {
@@ -9,3 +9,4 @@ qjfit.tech, localhost {
     reverse_proxy web:5173
   }
 }
+  

@@ -42,7 +42,7 @@ export class ExecuteFetchRunLifecycleService {
           source: source.source,
           status: "success",
           message: null,
-          fetched: result.fetched,
+          fetched: result.jobs.length,
         });
       } catch (error) {
         await this.fetchLogsRepository.create({
