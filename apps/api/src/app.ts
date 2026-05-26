@@ -1,8 +1,8 @@
 import express from 'express';
 import { pinoHttp } from 'pino-http';
 import type { Logger } from 'pino';
-import { createProfileRouter } from './api/routes/profile.route.js';
-import { createFetchRouter } from './api/routes/fetch.route.js';
+import { createProfileRouter } from './infrastructure/adapters/input/rest/profile.controller.js';
+import { createFetchRouter } from './infrastructure/adapters/input/rest/fetch.controller.js';
 import type { CreateFetchRunUseCase } from './application/usecases/fetch-runs/create-fetch-run.usecase.js';
 import type { ExecuteFetchRunLifecycleUseCase } from './application/usecases/fetch-runs/execute-fetch-run-lifecycle.usecase.js';
 import type { GetProfileUseCase } from './application/usecases/profile/get-profile.usecase.js';

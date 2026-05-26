@@ -22,10 +22,8 @@ QJFit is a self-hosted web app that aggregates job offers from multiple sources,
 apps/
   api/       # Backend API
   web/       # Frontend app
-  shared/    # Shared TypeScript utilities
 ops/
   Caddyfile  # Reverse proxy config
-resources/   # PRD and design references
 ```
 
 ## Prerequisites
@@ -41,32 +39,32 @@ cp .env.example .env
 
 2. Ensure your `.env` contains at least:
 ```bash
-DATABASE_URL=postgresql://QJFit:password@db:5432/QJFit
+DATABASE_URL='your db url'
 NODE_ENV=development
 PORT=3000
-CORS_ORIGIN=http://qjfit.tech
+CORS_ORIGIN=http://qjfit
 VITE_API_URL=
 ```
 
-## Local Domain (`http://qjfit.tech`)
+## Local Domain (`http://qjfit`)
 Map the domain to localhost once:
 ```bash
-echo "127.0.0.1 qjfit.tech" | sudo tee -a /etc/hosts
+echo "127.0.0.1 qjfit.tech" | sudo  /etc/hosts
 ```
 
-## Run with Docker (Recommended)
+## Run with Docker
 ```bash
 docker compose up --build
 ```
 
 Services:
-- App via Caddy: `http://qjfit.tech`
+- App via Caddy: `http://qjfit`
 - API (direct): `http://localhost:3000`
 - Web (direct): `http://localhost:5173`
 - Postgres: `localhost:5432`
 - Redis: `localhost:6379`
 
-## Run in Workspace Mode (Without Docker)
+## Run in Workspace Mode
 Install dependencies:
 ```bash
 npm install

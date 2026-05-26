@@ -1,12 +1,11 @@
-qjfit, localhost {
-  encode zstd gzip
+qjfit {
+    tls internal
 
-  handle_path /api/* {
-    reverse_proxy api:3000
-  }
+    handle /api/* {
+        reverse_proxy api:3000
+    }
 
-  handle {
-    reverse_proxy web:5173
-  }
+    handle {
+        reverse_proxy web:5173
+    }
 }
-  

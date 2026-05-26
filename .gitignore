@@ -13,3 +13,4 @@ _bmad
 .github/agents/
 _bmad-output
 *.http
+./github/agents
