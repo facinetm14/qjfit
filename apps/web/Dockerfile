@@ -4,18 +4,18 @@ WORKDIR /app
 FROM base AS deps
 COPY package.json ./
 COPY apps/web/package.json apps/web/package.json
-COPY apps/shared/package.json apps/shared/package.json
 RUN npm install
 
 FROM deps AS build
 COPY tsconfig.base.json ./
 COPY apps ./apps
-RUN npm run build --workspace @qjfit/shared && npm run build --workspace @qjfit/web
+RUN npm run build --workspace @qjfit/web
 
 FROM node:20.15.0-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 RUN addgroup -S qjfit && adduser -S qjfit -G qjfit
+COPY package.json ./
 COPY --from=build /app/apps/web/dist ./apps/web/dist
 COPY --from=build /app/apps/web/index.html ./apps/web/index.html
 COPY --from=deps /app/node_modules ./node_modules

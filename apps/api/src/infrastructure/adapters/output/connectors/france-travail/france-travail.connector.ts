@@ -1,0 +1,120 @@
+import { z } from "zod";
+import type {
+  FetchSourcePort,
+  FetchSourceResult,
+} from "../../../../../application/ports/output/fetch-source.port.js";
+import type { RawJob } from "../../../../../domain/sources/raw-job.entity.js";
+
+type FetchResponse = {
+  ok: boolean;
+  status: number;
+  json(): Promise<unknown>;
+};
+
+type Fetcher = (
+  input: string,
+  init?: {
+    readonly headers?: Record<string, string>;
+  },
+) => Promise<FetchResponse>;
+
+const franceTravailOfferSchema = z.object({
+  id: z.string().optional(),
+  intitule: z.string().optional(),
+  description: z.string().optional(),
+  dateCreation: z.string().optional(),
+  lieuTravail: z
+    .object({
+      libelle: z.string().optional(),
+    })
+    .optional(),
+  entreprise: z
+    .object({
+      nom: z.string().optional(),
+    })
+    .optional(),
+  origineOffre: z
+    .object({
+      urlOrigine: z.string().optional(),
+    })
+    .optional(),
+});
+
+const franceTravailResponseSchema = z.object({
+  resultats: z.array(franceTravailOfferSchema),
+});
+
+export interface FranceTravailConnectorOptions {
+  readonly baseUrl: string;
+  readonly accessToken: string;
+  readonly fetcher?: Fetcher;
+}
+
+export class FranceTravailConnector implements FetchSourcePort {
+  readonly source = "france-travail";
+
+  constructor(private readonly options: FranceTravailConnectorOptions) {}
+
+  async fetch(_runId: string): Promise<FetchSourceResult> {
+    if (!this.options.accessToken) {
+      throw new Error("France Travail access token missing");
+    }
+
+    const fetcher = this.options.fetcher ?? fetch;
+    const response = await fetcher(`${this.options.baseUrl}/offres/search`, {
+      headers: {
+        Authorization: `Bearer ${this.options.accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `France Travail request failed with status ${response.status}`,
+      );
+    }
+
+    const payload = await response.json();
+    const parsed = franceTravailResponseSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new Error("France Travail response payload is invalid");
+    }
+
+    const jobs = parsed.data.resultats
+      .map((offer) => this.toRawJob(offer))
+      .filter((job): job is RawJob => job !== null);
+
+    return { jobs };
+  }
+
+  private toRawJob(
+    offer: z.infer<typeof franceTravailOfferSchema>,
+  ): RawJob | null {
+    const title = offer.intitule?.trim() ?? "";
+    const url = offer.origineOffre?.urlOrigine?.trim() ?? "";
+
+    if (!title || !url) {
+      return null;
+    }
+
+    return {
+      source: this.source,
+      sourceJobId: offer.id ?? null,
+      title,
+      company: offer.entreprise?.nom?.trim() || "Unknown",
+      location: offer.lieuTravail?.libelle?.trim() || "Unknown",
+      description: offer.description?.trim() || "",
+      url,
+      publishedAt: this.toDateOrNull(offer.dateCreation),
+      raw: offer,
+    };
+  }
+
+  private toDateOrNull(value: string | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+}
