@@ -7,22 +7,20 @@
 
 ## Project overview
 
-QJFit is a self-hosted web application that aggregates job offers from multiple sources (Adzuna, France Travail, Welcome to the Jungle, LinkedIn RSS, JSearch), scores each offer against a developer profile using LLM, and presents ranked results in a Vue.js dashboard.
+QJFit is a hosted, multi-tenant web application that aggregates job offers from multiple sources (Adzuna, France Travail, Welcome to the Jungle, LinkedIn RSS, JSearch) into a shared pool, scores each offer against each signed-up user's own profile using an LLM, and presents ranked results in a Vue.js dashboard. Access to the dashboard and to triggering fetches requires an authenticated account — see `docs/prd/prd-v1.md` §3.0 for the accounts/authentication model.
 
 **Monorepo structure:**
 
 ```
 QJFit/
 ├── apps/
-│   ├── api/          backend (Node.js 20, TypeScript)
-│   └── web/          frontend (Vue.js 3 TypeScript, Vite)
-│   └── shared/       common utils (reusable Typescript functions)
+│   ├── back/          backend (Node.js 20, TypeScript)
+│   └── front/         frontend (Vue.js 3 TypeScript, Vite)
 ├── docker-compose.yml
 ├── docker-compose.prod.yml
 ├── Makefile
 ├── .env.example
 └── .github/workflows/ci.yml
-└── .github/workflows/deploy.yml
 ```
 
 **Primary stack:** NodeJs · Prisma · PostgreSQL 16 · Vue.js 3 · TanStack Query · Pinia · Docker · GitHub Actions
@@ -61,7 +59,7 @@ QJFit/
 ## Critical rules — read before every action
 
 1. **Never commit secrets.** All API keys live in `.env` only. The `.env` file is always in `.gitignore`. Only `.env.example` (with placeholder values) is committed.
-2. **Never use `:latest` Docker tags.** Always tag images with the git SHA: `ghcr.io/facinetm14/QJFit-api:$GITHUB_SHA`.
+2. **Never use `:latest` Docker tags.** Always tag images with the git SHA: `ghcr.io/facinetm14/qjfit-back:$GITHUB_SHA` (image names must be lowercase; `QJFit-api` is not a valid Docker reference).
 3. **Never run the Docker container as root.** Use a non-root user in every Dockerfile.
 4. **Never re-score an already scored offer** unless explicitly triggered by `POST /api/jobs/:id/rescore`.
 5. **Never hardcode profile values** (stack, location, max XP). All scoring context is read from the `profile` table at runtime.
@@ -75,8 +73,8 @@ QJFit/
 13. **Each app should follow Hexagonal Architecture** The code is decoupled, fully testable
 14. **Each app should be Screaming Architecture compliant** The codebase should make the core business clear - discovery pattern
 15. **Keep ADDR doc updated with made decision**
-16. **Use cady as reverse proxy**
-17. **Even though, it's single user, don't hardcode it** It shouldb be extensible to Multi-user / SaaS mode
+16. **Reverse proxy: Caddy locally (`docker-compose.yml` + `ops/Caddyfile`), Traefik in production.** Production containers (`back`, `front`) join an externally-managed `proxy-network` and are routed via Traefik labels in `docker-compose.prod.yml` — no Traefik service is defined in this repo; it runs as shared host infrastructure.
+17. **Multi-tenant by design.** `Profile` and `Score` are scoped per authenticated user (one profile per user; a job can carry a different score per user). `Job`, `FetchRun`, and `FetchLog` stay global/shared — job listings don't vary per user, only their scores do. Never assume a single implicit user; always resolve the current user from the authenticated session.
 
 ---
 
@@ -87,6 +85,7 @@ The agent must never invent or hardcode values. All configuration comes from env
 ```bash
 
 DATABASE_URL=postgresql://QJFit:password@db:5432/QJFit
+REDIS_URL=redis://redis:6379
 
 NODE_ENV=development
 PORT=3000
@@ -96,6 +95,10 @@ VITE_API_URL=http://localhost:3000
 ```
 
 When a required variable is missing at startup, the application must log a clear error message naming the missing variable and exit with code 1.
+
+Phase 0 (accounts/auth, see `docs/prd/prd-v1.md` §3.0 and §5) will add further required
+variables — a session secret and transactional-email provider credentials — once those are
+decided during implementation. Do not invent their names ahead of that decision.
 
 ## Coding conventions
 
