@@ -13,24 +13,30 @@ services:
   api:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      dockerfile: apps/back/Dockerfile
+      target: dev
     env_file:
       - .env
     depends_on:
       - db
     ports:
       - "3000:3000"
+    volumes:
+      - ./apps/back:/app/apps/back
 
   web:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
+      dockerfile: apps/front/Dockerfile
+      target: dev
     env_file:
       - .env
     depends_on:
       - api
     ports:
       - "5173:5173"
+    volumes:
+      - ./apps/front:/app/apps/front
 
   caddy:
     image: caddy:2.8.4-alpine
@@ -38,8 +44,8 @@ services:
       - api
       - web
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"
+      - "8443:443"
     volumes:
       - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
 
