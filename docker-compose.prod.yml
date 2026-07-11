@@ -1,29 +1,73 @@
 services:
-  api:
-    image: ghcr.io/facinetm14/QJFit-api:${GITHUB_SHA}
+  db:
+    image: postgres:16.3-alpine
+    networks:
+      - qjfit-network
     env_file:
       - .env
-    restart: unless-stopped
-
-  web:
-    image: ghcr.io/facinetm14/QJFit-web:${GITHUB_SHA}
-    env_file:
-      - .env
-    restart: unless-stopped
-
-  caddy:
-    image: caddy:2.8.4-alpine
-    ports:
-      - "80:80"
-      - "443:443"
     volumes:
-      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  migrate:
+    image: ghcr.io/facinetm14/qjfit-migrate:${GITHUB_SHA}
+    env_file:
+      - .env
+    networks:
+      - qjfit-network
     depends_on:
-      - api
-      - web
+      db:
+        condition: service_started
+    restart: "no"
+
+  back:
+    image: ghcr.io/facinetm14/qjfit-back:${GITHUB_SHA}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.qjfit-api.rule=Host(`qjfit.facinetkouyate.dev`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.qjfit-api.entrypoints=websecure"
+      - "traefik.http.routers.qjfit-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.qjfit-api.loadbalancer.server.port=3000"
+    depends_on:
+      db:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    networks:
+      - qjfit-network
+      - proxy-network
+    restart: unless-stopped
+
+  front:
+    image: ghcr.io/facinetm14/qjfit-front:${GITHUB_SHA}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.qjfit.rule=Host(`qjfit.facinetkouyate.dev`)"
+      - "traefik.http.routers.qjfit.entrypoints=websecure"
+      - "traefik.http.routers.qjfit.tls.certresolver=letsencrypt"
+      - "traefik.http.services.qjfit.loadbalancer.server.port=8080"
+    env_file:
+      - .env
+    networks:
+      - qjfit-network
+      - proxy-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
 
 volumes:
-  caddy_data:
-  caddy_config:
+  pgdata:
+
+networks:
+  qjfit-network:
+    driver: bridge
+  proxy-network:
+    external: true

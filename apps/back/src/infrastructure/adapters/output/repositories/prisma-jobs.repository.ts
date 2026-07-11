@@ -1,0 +1,54 @@
+import type { PrismaClient } from "@prisma/client";
+import type { Job } from "../../../../domain/jobs/job.entity.js";
+import type { NormalizedJobInput } from "../../../../domain/jobs/normalized-job.entity.js";
+import type { JobsRepositoryPort } from "../../../../application/ports/output/jobs-repository.port.js";
+import { toDomainJob } from "./job.mapper.js";
+
+export class PrismaJobsRepository implements JobsRepositoryPort {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async listUnscored(limit: number): Promise<readonly Job[]> {
+    const records = await this.prisma.job.findMany({
+      where: { score: null },
+      orderBy: { fetchedAt: "desc" },
+      take: limit,
+    });
+
+    return records.map(toDomainJob);
+  }
+
+  async createIfNotExists(input: NormalizedJobInput): Promise<Job | null> {
+    const existing = await this.prisma.job.findFirst({
+      where: { dedupKey: input.dedupKey },
+    });
+
+    if (existing) {
+      return null;
+    }
+
+    const created = await this.prisma.job.create({
+      data: {
+        title: input.title,
+        company: input.company,
+        location: input.location,
+        contractType: input.contractType,
+        remotePolicy: input.remotePolicy,
+        description: input.description,
+        url: input.url,
+        source: input.source,
+        sourceJobId: input.sourceJobId,
+        dedupKey: input.dedupKey,
+        fetchedAt: input.fetchedAt,
+      },
+    });
+
+    return toDomainJob(created);
+  }
+
+  async markScoreFailed(jobId: string): Promise<void> {
+    await this.prisma.job.update({
+      where: { id: jobId },
+      data: { status: "score_failed" },
+    });
+  }
+}
