@@ -23,36 +23,11 @@ enum RemotePolicy {
   Unknown
 }
 
-enum JobStatus {
-  new
-  scored
-  score_failed
-}
-
 enum RunStatus {
   pending
   running
   completed
   failed
-}
-
-model Profile {
-  id                     String   @id @default(cuid())
-  targetRole             String
-  targetCompanyIndustry  String[]
-  techStack              String[]
-  seniorityMin           Int
-  seniorityMax           Int
-  location               String
-  excludedKeywords       String[]
-  contractTypes          ContractType[]
-  salaryMin              Int?
-  bio                    String?
-  availability           DateTime?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-
-  @@map("profile")
 }
 
 model Job {
@@ -71,34 +46,14 @@ model Job {
   salaryMax      Int?
   experienceMin  Int?
   experienceMax  Int?
-  status         JobStatus    @default(new)
   fetchedAt      DateTime
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  score          Score?
 
   @@unique([source, sourceJobId])
   @@index([dedupKey])
-  @@index([status, fetchedAt])
+  @@index([fetchedAt])
   @@map("jobs")
-}
-
-model Score {
-  id            String   @id @default(cuid())
-  jobId         String   @unique
-  score         Int
-  summary       String
-  matchReasons  String[]
-  missingSkills String[]
-  seniorityFit  String
-  redFlags      String[]
-  rawResponse   Json
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-
-  @@index([score])
-  @@map("scores")
 }
 
 model FetchRun {
