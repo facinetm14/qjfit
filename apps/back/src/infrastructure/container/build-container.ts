@@ -10,6 +10,10 @@ import {
   type FranceTravailConnectorOptions,
 } from "../adapters/output/connectors/france-travail/france-travail.connector.js";
 import {
+  FranceTravailAuthClient,
+  type FranceTravailAuthClientOptions,
+} from "../adapters/output/connectors/france-travail/france-travail-auth.client.js";
+import {
   WttjRssConnector,
   type WttjRssConnectorOptions,
 } from "../adapters/output/connectors/wttj-rss/wttj-rss.connector.js";
@@ -28,10 +32,19 @@ export function buildContainer(config: AppConfig, logger: Logger): Container {
 
   container
     .bind<FranceTravailConnectorOptions>(TYPES.FranceTravailConnectorOptions)
+    .toConstantValue({ baseUrl: config.FRANCE_TRAVAIL_BASE_URL });
+  container
+    .bind<FranceTravailAuthClientOptions>(TYPES.FranceTravailAuthClientOptions)
     .toConstantValue({
-      baseUrl: config.FRANCE_TRAVAIL_BASE_URL,
-      accessToken: config.FRANCE_TRAVAIL_ACCESS_TOKEN,
+      authUrl: config.FRANCE_TRAVAIL_AUTH_URL,
+      clientId: config.FRANCE_TRAVAIL_CLIENT_ID,
+      clientSecret: config.FRANCE_TRAVAIL_CLIENT_SECRET,
+      scope: config.FRANCE_TRAVAIL_SCOPE,
     });
+  container
+    .bind(TYPES.FranceTravailAuthClient)
+    .to(FranceTravailAuthClient)
+    .inSingletonScope();
   container
     .bind<WttjRssConnectorOptions>(TYPES.WttjRssConnectorOptions)
     .toConstantValue({ feedUrl: config.WTTJ_RSS_FEED_URL });

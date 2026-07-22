@@ -53,7 +53,7 @@ describe('loadConfig', () => {
     }).toThrow('Invalid environment configuration');
   });
 
-  it('defaults connector config to empty strings when unset', () => {
+  it('defaults France Travail URLs/scope to their real platform values, and credentials to empty strings, when unset', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
       NODE_ENV: 'development',
@@ -61,8 +61,25 @@ describe('loadConfig', () => {
       CORS_ORIGIN: 'http://localhost:5173'
     });
 
-    expect(config.FRANCE_TRAVAIL_BASE_URL).toBe('');
-    expect(config.FRANCE_TRAVAIL_ACCESS_TOKEN).toBe('');
+    expect(config.FRANCE_TRAVAIL_BASE_URL).toBe(
+      'https://api.francetravail.io/partenaire/offresdemploi/v2'
+    );
+    expect(config.FRANCE_TRAVAIL_AUTH_URL).toBe(
+      'https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=/partenaire'
+    );
+    expect(config.FRANCE_TRAVAIL_SCOPE).toBe('api_offresdemploiv2 o2dsoffre');
+    expect(config.FRANCE_TRAVAIL_CLIENT_ID).toBe('');
+    expect(config.FRANCE_TRAVAIL_CLIENT_SECRET).toBe('');
+  });
+
+  it('defaults WTTJ_RSS_FEED_URL to an empty string when unset', () => {
+    const config = loadConfig({
+      DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      NODE_ENV: 'development',
+      PORT: '3000',
+      CORS_ORIGIN: 'http://localhost:5173'
+    });
+
     expect(config.WTTJ_RSS_FEED_URL).toBe('');
   });
 });

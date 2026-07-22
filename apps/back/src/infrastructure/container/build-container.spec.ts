@@ -15,8 +15,12 @@ function buildConfig(): AppConfig {
     PORT: 3000,
     CORS_ORIGIN: "http://localhost:5173",
     FETCH_RUN_CRON_SCHEDULE: "0 */4 * * *",
-    FRANCE_TRAVAIL_BASE_URL: "https://api.francetravail.io",
-    FRANCE_TRAVAIL_ACCESS_TOKEN: "token",
+    FRANCE_TRAVAIL_BASE_URL: "https://api.francetravail.io/partenaire/offresdemploi/v2",
+    FRANCE_TRAVAIL_AUTH_URL:
+      "https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=/partenaire",
+    FRANCE_TRAVAIL_SCOPE: "api_offresdemploiv2 o2dsoffre",
+    FRANCE_TRAVAIL_CLIENT_ID: "client-id",
+    FRANCE_TRAVAIL_CLIENT_SECRET: "client-secret",
     WTTJ_RSS_FEED_URL: "https://wttj.example/rss",
   };
 }
