@@ -10,7 +10,6 @@
         <option value="score">Sort: score, high → low</option>
         <option value="date">Sort: newest first</option>
       </select>
-      <button class="btn btn-ghost" @click="exportCsv">⇩ Export dossier (CSV)</button>
     </div>
 
     <div class="results-layout">
@@ -42,7 +41,6 @@ import { toRef } from 'vue';
 import ResultsFilters from './ResultsFilters.vue';
 import ResultCard from './ResultCard.vue';
 import { useJobFilters } from '../composables/useJobFilters.js';
-import { jobsToCsv } from '../utils/csv.js';
 import type { MatchedJob } from '../types/job.js';
 
 const props = defineProps<{ jobs: readonly MatchedJob[]; poolTotal: number }>();
@@ -50,19 +48,6 @@ const props = defineProps<{ jobs: readonly MatchedJob[]; poolTotal: number }>();
 const jobsRef = toRef(props, 'jobs');
 const { minScore, sources, contracts, remotePolicies, sortOrder, filteredJobs, toggleSource, toggleContract, toggleRemote } =
   useJobFilters(jobsRef);
-
-function exportCsv() {
-  const csv = jobsToCsv(filteredJobs.value);
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'qjfit-matches.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
 </script>
 
 <style scoped>

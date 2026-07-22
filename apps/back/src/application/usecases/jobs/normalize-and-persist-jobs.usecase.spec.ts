@@ -7,10 +7,6 @@ import type { RawJob } from "../../../domain/sources/raw-job.entity.js";
 class FakeJobsRepository implements JobsRepositoryPort {
   private readonly dedupKeys = new Set<string>();
 
-  async listUnscored(): Promise<readonly Job[]> {
-    return [];
-  }
-
   async createIfNotExists(input: NormalizedJobInput): Promise<Job | null> {
     if (this.dedupKeys.has(input.dedupKey)) {
       return null;
@@ -30,12 +26,7 @@ class FakeJobsRepository implements JobsRepositoryPort {
       sourceJobId: input.sourceJobId,
       dedupKey: input.dedupKey,
       fetchedAt: input.fetchedAt,
-      status: "new",
     };
-  }
-
-  async markScoreFailed(): Promise<void> {
-    return;
   }
 }
 

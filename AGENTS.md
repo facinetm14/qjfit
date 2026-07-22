@@ -9,7 +9,7 @@
 
 QJFit is a stateless, no-signup web application. Job offers are aggregated into a shared pool, refreshed on a cron schedule — **France Travail and Welcome to the Jungle connectors are implemented today**; Adzuna, JSearch, and HelloWork are planned v1 sources not yet built (PRD §3.2). A visitor uploads a CV and gets it scored against the current pool using an LLM, with results shown in a Vue.js results view. There are no accounts, no sessions, and nothing is persisted beyond the shared job pool itself — see `docs/prd/prd-v1.md` (v3.0), `docs/adr/0015-anonymous-stateless-mvp.md` (the product pivot), and `docs/adr/0016-anonymous-stateless-schema-and-runtime-migration.md` (the concrete schema/route/scheduler/Redis migration) for the model.
 
-**Migration in progress — read this before touching backend routes or schema.** ADR 0016 is accepted but not yet implemented. The route contract and architecture diagram below describe the *target* state. The checked-in code today still has the pre-pivot surface ADR 0016 supersedes: `GET/PUT /api/profile`, `POST /api/fetch`, and the `Profile`/`Score` Prisma models (`apps/back/prisma/schema.prisma` still defines both, plus a `JobStatus` enum ADR 0016 also drops). Treat `profile.controller.ts`, `fetch.controller.ts`, `prisma-profile.repository.ts`, and `score-unscored-jobs.usecase.ts` as dead code slated for deletion — not a pattern to extend. New work should build toward the ADR 0016 contract (`POST /api/match`, `GET /api/match/:id`, `GET /api/jobs`, `GET /api/runs`), which does not exist yet either. The frontend (`apps/front`) has already been rebuilt for the anonymous model (no profile UI) and currently talks to mock fixture data pending these routes — see `apps/front/src/composables/useMatchFlow.ts`.
+**Migration in progress — read this before touching backend routes or schema.** ADR 0016 is accepted but not yet implemented. The route contract and architecture diagram below describe the _target_ state. The checked-in code today still has the pre-pivot surface ADR 0016 supersedes: `GET/PUT /api/profile`, `POST /api/fetch`, and the `Profile`/`Score` Prisma models (`apps/back/prisma/schema.prisma` still defines both, plus a `JobStatus` enum ADR 0016 also drops). Treat `profile.controller.ts`, `fetch.controller.ts`, `prisma-profile.repository.ts`, and `score-unscored-jobs.usecase.ts` as dead code slated for deletion — not a pattern to extend. New work should build toward the ADR 0016 contract (`POST /api/match`, `GET /api/match/:id`, `GET /api/jobs`, `GET /api/runs`), which does not exist yet either. The frontend (`apps/front`) has already been rebuilt for the anonymous model (no profile UI) and currently talks to mock fixture data pending these routes — see `apps/front/src/composables/useMatchFlow.ts`.
 
 **Monorepo structure:**
 
@@ -20,8 +20,8 @@ QJFit/
 │   └── front/          frontend (Vue.js 3, TypeScript, Vite, Vitest)
 ├── docs/
 │   ├── adr/             architecture decision records — check Status before trusting one, later ADRs can supersede earlier ones
-│   ├── prd/              prd-v1.md is the product source of truth
-│   └── design/            "The Dossier" design system + prototype.html
+│   ├── prd/             prd-v1.md is the product source of truth
+│   └── api/             api documentation
 ├── ops/Caddyfile        local reverse-proxy config
 ├── docker-compose.yml
 ├── docker-compose.prod.yml
@@ -31,41 +31,6 @@ QJFit/
 ```
 
 **Primary stack:** Node.js 20 · Express · Prisma · PostgreSQL 16 · Vue.js 3 · Vite · Docker · GitHub Actions, in a Yarn workspaces monorepo. TanStack Query and Pinia are the intended additions for server-state/global-state once there's real server state to manage (match-ticket polling, cross-panel quota) — neither is installed in `apps/front/package.json` yet; see the Vue.js conventions below before reaching for either.
-
-### Architecture
-
-`live` = exists in the checked-in code today. `target (ADR 0016)` = accepted direction, not yet built.
-
-```
-┌───────────────────────────────────────────────────┐
-│  Browser                                          │
-│  Vue 3 SPA — Vite build, nginx-served in prod      │
-└──────────────────────┬─────────────────────────────┘
-                        │ REST / JSON
-┌───────────────────────▼──────────────────────────-─┐
-│  Node.js Backend (Express)                         │
-│  live:    GET/PUT /api/profile   POST /api/fetch    │
-│  target:  POST /api/match   GET /api/match/:id      │
-│           GET /api/jobs     GET /api/runs           │
-└──────┬─────────────────────┬────────────────────-─┘
-       │                     │
-┌──────▼──────┐     ┌────────▼─────────────────┐
-│  PostgreSQL │     │  Redis (target — not yet  │
-│  live       │     │  in docker-compose*.yml)  │
-└─────────────┘     └────────┬──────────────────┘
-                              │
-                    ┌─────────▼──────────────────┐
-                    │  Job Source Connectors      │
-                    │  live: France Travail, WTTJ │
-                    │  planned: Adzuna, JSearch,  │
-                    │  HelloWork (PRD §3.2)       │
-                    └─────────┬──────────────────┘
-                              │
-                    ┌─────────▼──────────────────┐
-                    │  AI Scoring Service        │
-                    │  LLM API (Claude)          │
-                    └────────────────────────────┘
-```
 
 ## Critical rules — read before every action
 
@@ -86,9 +51,10 @@ QJFit/
 15. **Keep the ADR docs updated with decisions made.** If a decision supersedes an earlier ADR, mark that ADR's Status line as superseded and link forward to the new one (see how 0002/0003/0004 point to 0016) — don't just leave it looking current.
 16. **Reverse proxy: Caddy locally (`docker-compose.yml` + `ops/Caddyfile`), Traefik in production.** Production containers (`back`, `front`) join an externally-managed `proxy-network` and are routed via Traefik labels in `docker-compose.prod.yml` — no Traefik service is defined in this repo; it runs as shared host infrastructure.
 17. **Stateless and anonymous by design.** There are no user accounts and no persisted per-visitor profile or score. `Job`, `FetchRun`, and `FetchLog` stay global/shared, refreshed by a cron job independent of visitor traffic. A visitor's uploaded CV and the scores computed against it exist only for the lifetime of that match request/ticket — never write them to durable storage.
-18. **Never push, once you're done, you just commit. You're are not responsible for pushing**
+18. **Keep api docs updated and regroup endpoints by domain/concern**
 19. **Don't extend the pre-pivot surface ADR 0016 supersedes.** `profile.controller.ts`, `fetch.controller.ts`, the `Profile`/`Score` Prisma models, and `Job.status`/`JobStatus` are dead code pending deletion (see the Project overview migration note above) — not a pattern to copy for new work.
 20. **Use Yarn, not npm.** This is a Yarn workspaces monorepo (`yarn.lock`, `"packageManager": "yarn@1.22.22"`, `corepack enable` in CI and every Dockerfile). Run workspace scripts via `yarn workspace @qjfit/back <script>` / `yarn workspace @qjfit/front <script>`, or the root aliases (`yarn dev:back`, `yarn dev:front`, `yarn test`, `yarn typecheck`, `yarn lint`, each with `:back`/`:front` variants). Don't run `npm install` or commit a `package-lock.json`.
+21. **Never push, once you're done, you just commit. You're are not responsible for pushing**
 
 ---
 
@@ -157,17 +123,17 @@ REDIS_URL=redis://redis:6379
 
 ## Common failure modes to avoid
 
-| Mistake                                                        | Correct approach                                                  |
-| -------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Awaiting `POST /api/match` response until scoring completes    | Return immediately with 202 Accepted + match ticket, poll for results |
-| Persisting a job's score keyed only by `jobId`                 | Score depends on the uploaded CV too — compute per match request, never persist/cache per job |
-| Storing the uploaded CV (file, text, or parsed profile)        | Process in memory only; discard once the match request resolves  |
-| Trusting a client-supplied IP header for rate limiting         | Read the IP from the trusted reverse-proxy hop only (Caddy/Traefik) |
-| Using `:latest` Docker tag                                     | Always use `$GITHUB_SHA` as the image tag                         |
-| Storing API keys in the DB                                     | Read from `process.env` at runtime only                           |
-| Crashing on LLM parse failure                                  | Catch, log with Pino, drop that job from the result set, continue |
-| Blocking the event loop during batch scoring                   | Use `Promise.allSettled` with a max concurrency of 5              |
-| Hardcoding the profile (stack, location) in the scoring prompt | Always parse it from the uploaded CV for that match request       |
-| Forgetting to run `prisma migrate deploy` on VPS after deploy  | Handled by the one-shot `migrate` container gating `back`'s startup — don't remove that `depends_on` |
+| Mistake                                                                                                 | Correct approach                                                                                      |
+| ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Awaiting `POST /api/match` response until scoring completes                                             | Return immediately with 202 Accepted + match ticket, poll for results                                 |
+| Persisting a job's score keyed only by `jobId`                                                          | Score depends on the uploaded CV too — compute per match request, never persist/cache per job         |
+| Storing the uploaded CV (file, text, or parsed profile)                                                 | Process in memory only; discard once the match request resolves                                       |
+| Trusting a client-supplied IP header for rate limiting                                                  | Read the IP from the trusted reverse-proxy hop only (Caddy/Traefik)                                   |
+| Using `:latest` Docker tag                                                                              | Always use `$GITHUB_SHA` as the image tag                                                             |
+| Storing API keys in the DB                                                                              | Read from `process.env` at runtime only                                                               |
+| Crashing on LLM parse failure                                                                           | Catch, log with Pino, drop that job from the result set, continue                                     |
+| Blocking the event loop during batch scoring                                                            | Use `Promise.allSettled` with a max concurrency of 5                                                  |
+| Hardcoding the profile (stack, location) in the scoring prompt                                          | Always parse it from the uploaded CV for that match request                                           |
+| Forgetting to run `prisma migrate deploy` on VPS after deploy                                           | Handled by the one-shot `migrate` container gating `back`'s startup — don't remove that `depends_on`  |
 | Adding a route/field to `profile.controller.ts`, `fetch.controller.ts`, or the `Profile`/`Score` models | Superseded by ADR 0016 — build `/api/match`, `/api/jobs`, etc. instead; these are slated for deletion |
-| Running `npm install` or committing a `package-lock.json`      | This is a Yarn workspaces monorepo — use `yarn install` and respect `yarn.lock` |
+| Running `npm install` or committing a `package-lock.json`                                               | This is a Yarn workspaces monorepo — use `yarn install` and respect `yarn.lock`                       |

@@ -9,11 +9,15 @@
         v-if="flow.panel.value === 'upload'"
         :file="flow.selectedFile.value"
         :pool-stats="flow.poolStats"
-        @select="flow.selectFile"
-        @run="flow.runCheck"
+        @cv-uploaded="flow.selectFile"
+        @cv-submitted="flow.runCheck"
       />
       <ScanningPanel v-else-if="flow.panel.value === 'scanning'" />
-      <ResultsPanel v-else-if="flow.panel.value === 'results'" :jobs="flow.results.value" :pool-total="flow.poolStats.total" />
+      <ResultsPanel
+        v-else-if="flow.panel.value === 'results'"
+        :jobs="flow.results.value"
+        :pool-total="flow.poolStats.total"
+      />
       <LimitedPanel v-else-if="flow.panel.value === 'limited'" />
     </div>
   </main>
@@ -22,13 +26,13 @@
 </template>
 
 <script setup lang="ts">
-import AppHeader from './components/AppHeader.vue';
-import AppFooter from './components/AppFooter.vue';
-import UploadPanel from './components/UploadPanel.vue';
-import ScanningPanel from './components/ScanningPanel.vue';
-import ResultsPanel from './components/ResultsPanel.vue';
-import LimitedPanel from './components/LimitedPanel.vue';
-import { useMatchFlow } from './composables/useMatchFlow.js';
+import AppHeader from "./components/AppHeader.vue";
+import AppFooter from "./components/AppFooter.vue";
+import UploadPanel from "./components/UploadPanel.vue";
+import ScanningPanel from "./components/ScanningPanel.vue";
+import ResultsPanel from "./components/ResultsPanel.vue";
+import LimitedPanel from "./components/LimitedPanel.vue";
+import { useMatchFlow } from "./composables/useMatchFlow.js";
 
 const flow = useMatchFlow();
 </script>

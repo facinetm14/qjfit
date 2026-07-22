@@ -2,8 +2,6 @@ import type { ContractType } from "../shared/contract-type.js";
 
 export type { ContractType } from "../shared/contract-type.js";
 
-export type JobStatus = "new" | "scored" | "score_failed";
-
 export type RemotePolicy = "Full" | "Hybrid" | "OnSite" | "Unknown";
 
 export interface Job {
@@ -19,5 +17,4 @@ export interface Job {
   readonly sourceJobId: string | null;
   readonly dedupKey: string;
   readonly fetchedAt: Date;
-  readonly status: JobStatus;
 }

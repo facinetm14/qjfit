@@ -1,7 +1,6 @@
 import type {
   ContractType,
   Job,
-  JobStatus,
   RemotePolicy,
 } from "../../../../domain/jobs/job.entity.js";
 
@@ -18,7 +17,6 @@ interface PrismaJobRecord {
   readonly sourceJobId: string | null;
   readonly dedupKey: string;
   readonly fetchedAt: Date;
-  readonly status: string;
 }
 
 export function toDomainJob(record: PrismaJobRecord): Job {
@@ -35,6 +33,5 @@ export function toDomainJob(record: PrismaJobRecord): Job {
     sourceJobId: record.sourceJobId,
     dedupKey: record.dedupKey,
     fetchedAt: record.fetchedAt,
-    status: record.status as JobStatus,
   };
 }

@@ -7,16 +7,6 @@ import { toDomainJob } from "./job.mapper.js";
 export class PrismaJobsRepository implements JobsRepositoryPort {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async listUnscored(limit: number): Promise<readonly Job[]> {
-    const records = await this.prisma.job.findMany({
-      where: { score: null },
-      orderBy: { fetchedAt: "desc" },
-      take: limit,
-    });
-
-    return records.map(toDomainJob);
-  }
-
   async createIfNotExists(input: NormalizedJobInput): Promise<Job | null> {
     const existing = await this.prisma.job.findFirst({
       where: { dedupKey: input.dedupKey },
@@ -43,12 +33,5 @@ export class PrismaJobsRepository implements JobsRepositoryPort {
     });
 
     return toDomainJob(created);
-  }
-
-  async markScoreFailed(jobId: string): Promise<void> {
-    await this.prisma.job.update({
-      where: { id: jobId },
-      data: { status: "score_failed" },
-    });
   }
 }
