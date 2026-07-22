@@ -95,6 +95,12 @@ FRANCE_TRAVAIL_AUTH_URL=https://entreprise.francetravail.fr/connexion/oauth2/acc
 FRANCE_TRAVAIL_SCOPE=api_offresdemploiv2 o2dsoffre
 FRANCE_TRAVAIL_CLIENT_ID=
 FRANCE_TRAVAIL_CLIENT_SECRET=
+# Pagination for /offres/search, "start-end" (max span 150). France Travail
+# paginates via this `range` query param, not an HTTP Range header — the
+# response echoes a Content-Range header ("offres {first}-{last}/{total}").
+# Fetching beyond this single page (walking Content-Range across multiple
+# requests) isn't implemented yet.
+FRANCE_TRAVAIL_RESULTS_RANGE=0-149
 
 # WTTJ RSS feed URL. Left blank, that source's fetch fails and is logged to
 # fetch_logs for that run; the other source still runs.
@@ -105,7 +111,7 @@ WTTJ_RSS_FEED_URL=
 REDIS_URL=redis://redis:6379
 ```
 
-`apps/back/src/config.ts` (Zod-validated) is the current source of truth for which variables the backend actually requires at boot — today that's `DATABASE_URL`, `NODE_ENV`, `PORT`, `CORS_ORIGIN`, `FETCH_RUN_CRON_SCHEDULE`, `FRANCE_TRAVAIL_BASE_URL`, `FRANCE_TRAVAIL_AUTH_URL`, `FRANCE_TRAVAIL_SCOPE`, `FRANCE_TRAVAIL_CLIENT_ID`, `FRANCE_TRAVAIL_CLIENT_SECRET`, `WTTJ_RSS_FEED_URL`. When a required variable is missing or invalid at startup, the application must log a clear error message naming the variable and exit with code 1.
+`apps/back/src/config.ts` (Zod-validated) is the current source of truth for which variables the backend actually requires at boot — today that's `DATABASE_URL`, `NODE_ENV`, `PORT`, `CORS_ORIGIN`, `FETCH_RUN_CRON_SCHEDULE`, `FRANCE_TRAVAIL_BASE_URL`, `FRANCE_TRAVAIL_AUTH_URL`, `FRANCE_TRAVAIL_SCOPE`, `FRANCE_TRAVAIL_CLIENT_ID`, `FRANCE_TRAVAIL_CLIENT_SECRET`, `FRANCE_TRAVAIL_RESULTS_RANGE`, `WTTJ_RSS_FEED_URL`. When a required variable is missing or invalid at startup, the application must log a clear error message naming the variable and exit with code 1.
 
 ## Coding conventions
 
