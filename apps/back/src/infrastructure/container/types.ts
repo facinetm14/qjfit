@@ -11,6 +11,10 @@ export const TYPES = {
   Logger: Symbol.for("Logger"),
   PrismaClient: Symbol.for("PrismaClient"),
   FranceTravailConnectorOptions: Symbol.for("FranceTravailConnectorOptions"),
+  FranceTravailAuthClientOptions: Symbol.for(
+    "FranceTravailAuthClientOptions",
+  ),
+  FranceTravailAuthClient: Symbol.for("FranceTravailAuthClient"),
   WttjRssConnectorOptions: Symbol.for("WttjRssConnectorOptions"),
   FetchRunScheduler: Symbol.for("FetchRunScheduler"),
 } as const;
