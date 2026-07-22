@@ -19,19 +19,12 @@ import { ExecuteFetchRunLifecycleUseCase } from "../../application/usecases/fetc
 import { FetchRunScheduler } from "../adapters/input/scheduler/fetch-run-scheduler.js";
 import { TYPES } from "./types.js";
 
-/**
- * Composition root: binds every dependency this app boots with. Repositories,
- * connectors, and use cases are annotated with @injectable()/@inject() and
- * resolved by inversify; only raw config/infra values are bound as constants.
- */
 export function buildContainer(config: AppConfig, logger: Logger): Container {
   const container = new Container();
 
   container.bind<AppConfig>(TYPES.Config).toConstantValue(config);
   container.bind<Logger>(TYPES.Logger).toConstantValue(logger);
-  container
-    .bind(TYPES.PrismaClient)
-    .toConstantValue(getPrismaClient());
+  container.bind(TYPES.PrismaClient).toConstantValue(getPrismaClient());
 
   container
     .bind<FranceTravailConnectorOptions>(TYPES.FranceTravailConnectorOptions)
