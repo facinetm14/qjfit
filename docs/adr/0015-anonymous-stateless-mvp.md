@@ -71,3 +71,6 @@ request.
   so there is very little visitor data to protect or account for.
 - Trade-off accepted: no return-visit continuity. A visitor gets a snapshot in time, not a
   living dashboard. This matches the "quick check" product framing, not a tool people live in.
+
+> **Update**: the follow-up schema/route migration and cron mechanism flagged above as not yet
+> decided are finalized in [ADR 0016](0016-anonymous-stateless-schema-and-runtime-migration.md).
