@@ -1,88 +1,84 @@
+import { Container } from "inversify";
 import type { Logger } from "pino";
 import type { AppConfig } from "../../config.js";
 import { getPrismaClient } from "../db/prisma-client.js";
 import { PrismaFetchRunsRepository } from "../adapters/output/repositories/prisma-fetch-runs.repository.js";
 import { PrismaFetchLogsRepository } from "../adapters/output/repositories/prisma-fetch-logs.repository.js";
 import { PrismaJobsRepository } from "../adapters/output/repositories/prisma-jobs.repository.js";
-import { FranceTravailConnector } from "../adapters/output/connectors/france-travail/france-travail.connector.js";
-import { WttjRssConnector } from "../adapters/output/connectors/wttj-rss/wttj-rss.connector.js";
+import {
+  FranceTravailConnector,
+  type FranceTravailConnectorOptions,
+} from "../adapters/output/connectors/france-travail/france-travail.connector.js";
+import {
+  WttjRssConnector,
+  type WttjRssConnectorOptions,
+} from "../adapters/output/connectors/wttj-rss/wttj-rss.connector.js";
 import { NormalizeAndPersistJobsUseCase } from "../../application/usecases/jobs/normalize-and-persist-jobs.usecase.js";
 import { CreateFetchRunUseCase } from "../../application/usecases/fetch-runs/create-fetch-run.usecase.js";
 import { ExecuteFetchRunLifecycleUseCase } from "../../application/usecases/fetch-runs/execute-fetch-run-lifecycle.usecase.js";
 import { FetchRunScheduler } from "../adapters/input/scheduler/fetch-run-scheduler.js";
-import { Container } from "./container.js";
-import type { Dependencies } from "./dependencies.js";
+import { TYPES } from "./types.js";
 
 /**
- * Composition root: registers every dependency this app boots with.
- * Each factory is resolved lazily and cached as a singleton by the container.
+ * Composition root: binds every dependency this app boots with. Repositories,
+ * connectors, and use cases are annotated with @injectable()/@inject() and
+ * resolved by inversify; only raw config/infra values are bound as constants.
  */
-export function buildContainer(
-  config: AppConfig,
-  logger: Logger,
-): Container<Dependencies> {
-  const container = new Container<Dependencies>();
+export function buildContainer(config: AppConfig, logger: Logger): Container {
+  const container = new Container();
 
-  container.register("config", () => config);
-  container.register("logger", () => logger);
-  container.register("prisma", () => getPrismaClient());
+  container.bind<AppConfig>(TYPES.Config).toConstantValue(config);
+  container.bind<Logger>(TYPES.Logger).toConstantValue(logger);
+  container
+    .bind(TYPES.PrismaClient)
+    .toConstantValue(getPrismaClient());
 
-  container.register(
-    "fetchRunsRepository",
-    (c) => new PrismaFetchRunsRepository(c.resolve("prisma")),
-  );
-  container.register(
-    "fetchLogsRepository",
-    (c) => new PrismaFetchLogsRepository(c.resolve("prisma")),
-  );
-  container.register(
-    "jobsRepository",
-    (c) => new PrismaJobsRepository(c.resolve("prisma")),
-  );
+  container
+    .bind<FranceTravailConnectorOptions>(TYPES.FranceTravailConnectorOptions)
+    .toConstantValue({
+      baseUrl: config.FRANCE_TRAVAIL_BASE_URL,
+      accessToken: config.FRANCE_TRAVAIL_ACCESS_TOKEN,
+    });
+  container
+    .bind<WttjRssConnectorOptions>(TYPES.WttjRssConnectorOptions)
+    .toConstantValue({ feedUrl: config.WTTJ_RSS_FEED_URL });
 
-  container.register("fetchSources", (c) => {
-    const appConfig = c.resolve("config");
-    return [
-      new FranceTravailConnector({
-        baseUrl: appConfig.FRANCE_TRAVAIL_BASE_URL,
-        accessToken: appConfig.FRANCE_TRAVAIL_ACCESS_TOKEN,
-      }),
-      new WttjRssConnector({ feedUrl: appConfig.WTTJ_RSS_FEED_URL }),
-    ];
-  });
+  container
+    .bind(TYPES.FetchRunsRepository)
+    .to(PrismaFetchRunsRepository)
+    .inSingletonScope();
+  container
+    .bind(TYPES.FetchLogsRepository)
+    .to(PrismaFetchLogsRepository)
+    .inSingletonScope();
+  container
+    .bind(TYPES.JobsRepository)
+    .to(PrismaJobsRepository)
+    .inSingletonScope();
 
-  container.register(
-    "normalizeAndPersistJobsUseCase",
-    (c) => new NormalizeAndPersistJobsUseCase(c.resolve("jobsRepository")),
-  );
+  container
+    .bind(TYPES.FetchSource)
+    .to(FranceTravailConnector)
+    .inSingletonScope();
+  container.bind(TYPES.FetchSource).to(WttjRssConnector).inSingletonScope();
 
-  container.register(
-    "createFetchRunUseCase",
-    (c) => new CreateFetchRunUseCase(c.resolve("fetchRunsRepository")),
-  );
+  container
+    .bind(TYPES.NormalizeAndPersistJobsUseCase)
+    .to(NormalizeAndPersistJobsUseCase)
+    .inSingletonScope();
+  container
+    .bind(TYPES.CreateFetchRunUseCase)
+    .to(CreateFetchRunUseCase)
+    .inSingletonScope();
+  container
+    .bind(TYPES.ExecuteFetchRunLifecycleUseCase)
+    .to(ExecuteFetchRunLifecycleUseCase)
+    .inSingletonScope();
 
-  container.register(
-    "executeFetchRunLifecycleUseCase",
-    (c) =>
-      new ExecuteFetchRunLifecycleUseCase(
-        c.resolve("fetchRunsRepository"),
-        c.resolve("fetchLogsRepository"),
-        c.resolve("fetchSources"),
-        c.resolve("normalizeAndPersistJobsUseCase"),
-      ),
-  );
-
-  container.register(
-    "fetchRunScheduler",
-    (c) =>
-      new FetchRunScheduler({
-        createFetchRunUseCase: c.resolve("createFetchRunUseCase"),
-        executeFetchRunLifecycleUseCase: c.resolve(
-          "executeFetchRunLifecycleUseCase",
-        ),
-        logger: c.resolve("logger"),
-      }),
-  );
+  container
+    .bind(TYPES.FetchRunScheduler)
+    .to(FetchRunScheduler)
+    .inSingletonScope();
 
   return container;
 }

@@ -1,9 +1,11 @@
 import { z } from "zod";
+import { inject, injectable } from "inversify";
 import type {
   FetchSourcePort,
   FetchSourceResult,
 } from "../../../../../application/ports/output/fetch-source.port.js";
 import type { RawJob } from "../../../../../domain/sources/raw-job.entity.js";
+import { TYPES } from "../../../../container/types.js";
 
 type FetchResponse = {
   ok: boolean;
@@ -50,10 +52,14 @@ export interface FranceTravailConnectorOptions {
   readonly fetcher?: Fetcher;
 }
 
+@injectable()
 export class FranceTravailConnector implements FetchSourcePort {
   readonly source = "france-travail";
 
-  constructor(private readonly options: FranceTravailConnectorOptions) {}
+  constructor(
+    @inject(TYPES.FranceTravailConnectorOptions)
+    private readonly options: FranceTravailConnectorOptions,
+  ) {}
 
   async fetch(_runId: string): Promise<FetchSourceResult> {
     if (!this.options.accessToken) {
