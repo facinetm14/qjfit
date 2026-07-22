@@ -72,6 +72,41 @@ describe('loadConfig', () => {
     expect(config.FRANCE_TRAVAIL_CLIENT_SECRET).toBe('');
   });
 
+  it('defaults FRANCE_TRAVAIL_RESULTS_RANGE to the first page of 150 results when unset', () => {
+    const config = loadConfig({
+      DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      NODE_ENV: 'development',
+      PORT: '3000',
+      CORS_ORIGIN: 'http://localhost:5173'
+    });
+
+    expect(config.FRANCE_TRAVAIL_RESULTS_RANGE).toBe('0-149');
+  });
+
+  it('accepts a custom FRANCE_TRAVAIL_RESULTS_RANGE', () => {
+    const config = loadConfig({
+      DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      NODE_ENV: 'development',
+      PORT: '3000',
+      CORS_ORIGIN: 'http://localhost:5173',
+      FRANCE_TRAVAIL_RESULTS_RANGE: '150-299'
+    });
+
+    expect(config.FRANCE_TRAVAIL_RESULTS_RANGE).toBe('150-299');
+  });
+
+  it('rejects an invalid FRANCE_TRAVAIL_RESULTS_RANGE format', () => {
+    expect(() => {
+      loadConfig({
+        DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+        NODE_ENV: 'development',
+        PORT: '3000',
+        CORS_ORIGIN: 'http://localhost:5173',
+        FRANCE_TRAVAIL_RESULTS_RANGE: 'not-a-range'
+      });
+    }).toThrow('Invalid environment configuration');
+  });
+
   it('defaults WTTJ_RSS_FEED_URL to an empty string when unset', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',

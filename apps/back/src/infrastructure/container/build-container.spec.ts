@@ -21,6 +21,7 @@ function buildConfig(): AppConfig {
     FRANCE_TRAVAIL_SCOPE: "api_offresdemploiv2 o2dsoffre",
     FRANCE_TRAVAIL_CLIENT_ID: "client-id",
     FRANCE_TRAVAIL_CLIENT_SECRET: "client-secret",
+    FRANCE_TRAVAIL_RESULTS_RANGE: "0-149",
     WTTJ_RSS_FEED_URL: "https://wttj.example/rss",
   };
 }
