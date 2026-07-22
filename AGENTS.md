@@ -9,7 +9,7 @@
 
 QJFit is a stateless, no-signup web application. Job offers are aggregated into a shared pool, refreshed on a cron schedule — **France Travail and Welcome to the Jungle connectors are implemented today**; Adzuna, JSearch, and HelloWork are planned v1 sources not yet built (PRD §3.2). A visitor uploads a CV and gets it scored against the current pool using an LLM, with results shown in a Vue.js results view. There are no accounts, no sessions, and nothing is persisted beyond the shared job pool itself — see `docs/prd/prd-v1.md` (v3.0), `docs/adr/0015-anonymous-stateless-mvp.md` (the product pivot), and `docs/adr/0016-anonymous-stateless-schema-and-runtime-migration.md` (the concrete schema/route/scheduler/Redis migration) for the model.
 
-**Migration in progress — read this before touching backend routes or schema.** ADR 0016 is accepted but not yet implemented. The route contract and architecture diagram below describe the _target_ state. The checked-in code today still has the pre-pivot surface ADR 0016 supersedes: `GET/PUT /api/profile`, `POST /api/fetch`, and the `Profile`/`Score` Prisma models (`apps/back/prisma/schema.prisma` still defines both, plus a `JobStatus` enum ADR 0016 also drops). Treat `profile.controller.ts`, `fetch.controller.ts`, `prisma-profile.repository.ts`, and `score-unscored-jobs.usecase.ts` as dead code slated for deletion — not a pattern to extend. New work should build toward the ADR 0016 contract (`POST /api/match`, `GET /api/match/:id`, `GET /api/jobs`, `GET /api/runs`), which does not exist yet either. The frontend (`apps/front`) has already been rebuilt for the anonymous model (no profile UI) and currently talks to mock fixture data pending these routes — see `apps/front/src/composables/useMatchFlow.ts`.
+**Migration in progress — read this before touching backend routes or schema.** ADR 0016 is accepted and partially implemented. The pre-pivot surface it supersedes (`GET/PUT /api/profile`, `POST /api/fetch`, the `Profile`/`Score` Prisma models, `Job.status`/`JobStatus`) has already been deleted from `apps/back/src` and `schema.prisma`. The cron-driven job pool refresh (§3) is also implemented: `bootstrap.ts` wires `CreateFetchRunUseCase`/`ExecuteFetchRunLifecycleUseCase` behind an in-process `node-cron` scheduler (`infrastructure/adapters/input/scheduler/`) on the `FETCH_RUN_CRON_SCHEDULE` interval — no route triggers a fetch anymore. Still outstanding: the `POST /api/match`, `GET /api/match/:id`, `GET /api/jobs`, `GET /api/runs` route contract, and the Redis-backed rate limiter/match-ticket store (§4) — none of that exists yet. The frontend (`apps/front`) has already been rebuilt for the anonymous model (no profile UI) and currently talks to mock fixture data pending these routes — see `apps/front/src/composables/useMatchFlow.ts`.
 
 **Monorepo structure:**
 
@@ -52,7 +52,7 @@ QJFit/
 16. **Reverse proxy: Caddy locally (`docker-compose.yml` + `ops/Caddyfile`), Traefik in production.** Production containers (`back`, `front`) join an externally-managed `proxy-network` and are routed via Traefik labels in `docker-compose.prod.yml` — no Traefik service is defined in this repo; it runs as shared host infrastructure.
 17. **Stateless and anonymous by design.** There are no user accounts and no persisted per-visitor profile or score. `Job`, `FetchRun`, and `FetchLog` stay global/shared, refreshed by a cron job independent of visitor traffic. A visitor's uploaded CV and the scores computed against it exist only for the lifetime of that match request/ticket — never write them to durable storage.
 18. **Keep api docs updated and regroup endpoints by domain/concern**
-19. **Don't extend the pre-pivot surface ADR 0016 supersedes.** `profile.controller.ts`, `fetch.controller.ts`, the `Profile`/`Score` Prisma models, and `Job.status`/`JobStatus` are dead code pending deletion (see the Project overview migration note above) — not a pattern to copy for new work.
+19. **Don't reintroduce the pre-pivot surface ADR 0016 supersedes.** `profile.controller.ts`, `fetch.controller.ts`, the `Profile`/`Score` Prisma models, and `Job.status`/`JobStatus` have already been deleted (see the Project overview migration note above) — don't add a persisted profile, a persisted score, or a public fetch-trigger route back.
 20. **Use Yarn, not npm.** This is a Yarn workspaces monorepo (`yarn.lock`, `"packageManager": "yarn@1.22.22"`, `corepack enable` in CI and every Dockerfile). Run workspace scripts via `yarn workspace @qjfit/back <script>` / `yarn workspace @qjfit/front <script>`, or the root aliases (`yarn dev:back`, `yarn dev:front`, `yarn test`, `yarn typecheck`, `yarn lint`, each with `:back`/`:front` variants). Don't run `npm install` or commit a `package-lock.json`.
 21. **Never push, once you're done, you just commit. You're are not responsible for pushing**
 
@@ -77,12 +77,25 @@ CORS_ORIGIN=http://localhost:5173
 
 VITE_API_URL=http://localhost:3000
 
+# Cron expression for the in-process job pool refresh (ADR 0016 §3).
+# Defaults to every 4 hours when unset.
+FETCH_RUN_CRON_SCHEDULE=0 */4 * * *
+
+# France Travail connector credentials. Left blank, that source's fetch
+# fails and is logged to fetch_logs for that run; the other source still runs.
+FRANCE_TRAVAIL_BASE_URL=
+FRANCE_TRAVAIL_ACCESS_TOKEN=
+
+# WTTJ RSS feed URL. Left blank, that source's fetch fails and is logged to
+# fetch_logs for that run; the other source still runs.
+WTTJ_RSS_FEED_URL=
+
 # Reserved for the Redis migration (ADR 0016) — not yet read by
 # apps/back/src/config.ts and not yet a service in docker-compose*.yml.
 REDIS_URL=redis://redis:6379
 ```
 
-`apps/back/src/config.ts` (Zod-validated) is the current source of truth for which variables the backend actually requires at boot — today that's `DATABASE_URL`, `NODE_ENV`, `PORT`, `CORS_ORIGIN` only. When a required variable is missing at startup, the application must log a clear error message naming the missing variable and exit with code 1.
+`apps/back/src/config.ts` (Zod-validated) is the current source of truth for which variables the backend actually requires at boot — today that's `DATABASE_URL`, `NODE_ENV`, `PORT`, `CORS_ORIGIN`, `FETCH_RUN_CRON_SCHEDULE`, `FRANCE_TRAVAIL_BASE_URL`, `FRANCE_TRAVAIL_ACCESS_TOKEN`, `WTTJ_RSS_FEED_URL`. When a required variable is missing or invalid at startup, the application must log a clear error message naming the variable and exit with code 1.
 
 ## Coding conventions
 
@@ -135,5 +148,6 @@ REDIS_URL=redis://redis:6379
 | Blocking the event loop during batch scoring                                                            | Use `Promise.allSettled` with a max concurrency of 5                                                  |
 | Hardcoding the profile (stack, location) in the scoring prompt                                          | Always parse it from the uploaded CV for that match request                                           |
 | Forgetting to run `prisma migrate deploy` on VPS after deploy                                           | Handled by the one-shot `migrate` container gating `back`'s startup — don't remove that `depends_on`  |
-| Adding a route/field to `profile.controller.ts`, `fetch.controller.ts`, or the `Profile`/`Score` models | Superseded by ADR 0016 — build `/api/match`, `/api/jobs`, etc. instead; these are slated for deletion |
+| Reintroducing a persisted profile/score model or a public fetch-trigger route                          | Superseded by ADR 0016 — build `/api/match`, `/api/jobs`, etc. instead; the fetch pool refresh is cron-only |
 | Running `npm install` or committing a `package-lock.json`                                               | This is a Yarn workspaces monorepo — use `yarn install` and respect `yarn.lock`                       |
+| Adding an HTTP route to trigger the job pool refresh                                                    | The refresh is cron-only, wired in `bootstrap.ts` via `node-cron` — no route calls the connectors      |
