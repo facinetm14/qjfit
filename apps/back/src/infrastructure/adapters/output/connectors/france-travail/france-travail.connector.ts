@@ -49,6 +49,12 @@ const franceTravailResponseSchema = z.object({
 
 export interface FranceTravailConnectorOptions {
   readonly baseUrl: string;
+  // "start-end" (e.g. "0-149"), max span 150 — sent as-is as the `range`
+  // query param. Verified against real clients (job-search-france-travail-api,
+  // api-offres-emploi), not assumed: France Travail paginates via a `range`
+  // query param, not an HTTP Range header, and echoes a Content-Range
+  // response header ("offres {first}-{last}/{total}").
+  readonly range: string;
   readonly fetcher?: Fetcher;
 }
 
@@ -67,7 +73,8 @@ export class FranceTravailConnector implements FetchSourcePort {
     const accessToken = await this.authClient.getAccessToken();
 
     const fetcher = this.options.fetcher ?? fetch;
-    const response = await fetcher(`${this.options.baseUrl}/offres/search`, {
+    const url = `${this.options.baseUrl}/offres/search?range=${this.options.range}`;
+    const response = await fetcher(url, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },

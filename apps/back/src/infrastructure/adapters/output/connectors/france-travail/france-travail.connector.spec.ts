@@ -37,7 +37,7 @@ describe("FranceTravailConnector", () => {
       json: async () => payload,
     });
     const connector = new FranceTravailConnector(
-      { baseUrl: "https://api.test", fetcher },
+      { baseUrl: "https://api.test", range: "0-149", fetcher },
       buildAuthClient(),
     );
 
@@ -62,7 +62,7 @@ describe("FranceTravailConnector", () => {
       json: async () => payload,
     });
     const connector = new FranceTravailConnector(
-      { baseUrl: "https://api.test", fetcher },
+      { baseUrl: "https://api.test", range: "0-149", fetcher },
       buildAuthClient(),
     );
 
@@ -83,7 +83,7 @@ describe("FranceTravailConnector", () => {
       json: async () => loadFixture("error-rate-limit.json"),
     });
     const connector = new FranceTravailConnector(
-      { baseUrl: "https://api.test", fetcher },
+      { baseUrl: "https://api.test", range: "0-149", fetcher },
       buildAuthClient(),
     );
 
@@ -99,7 +99,7 @@ describe("FranceTravailConnector", () => {
       json: async () => loadFixture("error-auth.json"),
     });
     const connector = new FranceTravailConnector(
-      { baseUrl: "https://api.test", fetcher },
+      { baseUrl: "https://api.test", range: "0-149", fetcher },
       buildAuthClient(),
     );
 
@@ -115,7 +115,7 @@ describe("FranceTravailConnector", () => {
       json: async () => ({ invalid: true }),
     });
     const connector = new FranceTravailConnector(
-      { baseUrl: "https://api.test", fetcher },
+      { baseUrl: "https://api.test", range: "0-149", fetcher },
       buildAuthClient(),
     );
 
@@ -132,24 +132,41 @@ describe("FranceTravailConnector", () => {
       return { ok: true, status: 200, json: async () => payload };
     };
     const connector = new FranceTravailConnector(
-      { baseUrl: "https://api.test", fetcher },
+      { baseUrl: "https://api.test", range: "0-149", fetcher },
       buildAuthClient({ getAccessToken: async () => "fresh-token" }),
     );
 
     await connector.fetch("run-1");
 
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.url).toBe("https://api.test/offres/search");
+    expect(calls[0]?.url).toBe("https://api.test/offres/search?range=0-149");
     expect(calls[0]?.init).toMatchObject({
       headers: { Authorization: "Bearer fresh-token" },
     });
+  });
+
+  it("sends a custom range query parameter when configured", async () => {
+    const payload = loadFixture("success-minimal.json");
+    const calls: Array<{ url: string; init: unknown }> = [];
+    const fetcher = async (url: string, init: unknown) => {
+      calls.push({ url, init });
+      return { ok: true, status: 200, json: async () => payload };
+    };
+    const connector = new FranceTravailConnector(
+      { baseUrl: "https://api.test", range: "150-299", fetcher },
+      buildAuthClient(),
+    );
+
+    await connector.fetch("run-1");
+
+    expect(calls[0]?.url).toBe("https://api.test/offres/search?range=150-299");
   });
 
   it("propagates errors from the auth client without calling the search endpoint", async () => {
     const fetcher = jest.fn();
     const authFailure = new Error("France Travail client_id/client_secret missing");
     const connector = new FranceTravailConnector(
-      { baseUrl: "https://api.test", fetcher },
+      { baseUrl: "https://api.test", range: "0-149", fetcher },
       buildAuthClient({
         getAccessToken: async () => {
           throw authFailure;

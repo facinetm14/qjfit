@@ -32,7 +32,10 @@ export function buildContainer(config: AppConfig, logger: Logger): Container {
 
   container
     .bind<FranceTravailConnectorOptions>(TYPES.FranceTravailConnectorOptions)
-    .toConstantValue({ baseUrl: config.FRANCE_TRAVAIL_BASE_URL });
+    .toConstantValue({
+      baseUrl: config.FRANCE_TRAVAIL_BASE_URL,
+      range: config.FRANCE_TRAVAIL_RESULTS_RANGE,
+    });
   container
     .bind<FranceTravailAuthClientOptions>(TYPES.FranceTravailAuthClientOptions)
     .toConstantValue({
