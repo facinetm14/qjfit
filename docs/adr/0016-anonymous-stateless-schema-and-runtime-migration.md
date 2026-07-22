@@ -118,3 +118,15 @@ pattern (AGENTS.md rule 13), using **`ioredis`** as the client library:
 - This ADR is documentation-only: it does not implement the schema migration, route changes,
   scheduler, or Redis adapters described above. Implementation is a separate, later task
   guided by these decisions.
+
+## Follow-up: manual/ops trigger (implemented)
+
+§3's "no ... HTTP endpoint is introduced for triggering fetch" stands — no route was added.
+The operational need to force a pool refresh outside the cron interval (e.g. after a source
+outage, or in local dev) is instead met by a CLI script,
+`yarn run-jobs` (`apps/back/src/run-jobs-cli.ts` / `run-jobs.ts`), which builds the same DI
+container and invokes `FetchRunScheduler.triggerRun()` — the exact seam `bootstrap.ts` wires
+into `node-cron` — then exits. It adds no container, no deploy step, and no HTTP surface, so
+it does not reopen the publicly/internally routed endpoint this ADR rejected. In prod, run it
+via `docker compose -f docker-compose.prod.yml exec back node apps/back/dist/run-jobs-cli.js`
+against the already-running `back` container.
