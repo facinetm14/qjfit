@@ -1,13 +1,8 @@
 # QJFit — Product Requirements Document
 
-**Version**: 3.0
+**Version**: 1.0
 **Status**: Draft
 **Last updated**: July 2026
-
-> **v3.0 note**: This version replaces the account-based design of v2.0. QJFit is now a
-> stateless, no-signup tool — see [ADR 0015](../adr/0015-anonymous-stateless-mvp.md) for the
-> rationale. Accounts, sessions, per-user profiles, the application tracker, and email
-> notifications are removed from scope entirely, not deferred.
 
 ---
 
