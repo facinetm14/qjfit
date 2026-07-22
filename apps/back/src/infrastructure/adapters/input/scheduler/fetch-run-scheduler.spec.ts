@@ -34,11 +34,11 @@ describe("FetchRunScheduler", () => {
     } as unknown as ExecuteFetchRunLifecycleUseCase;
     const logger = buildLogger();
 
-    const scheduler = new FetchRunScheduler({
+    const scheduler = new FetchRunScheduler(
       createFetchRunUseCase,
       executeFetchRunLifecycleUseCase,
       logger,
-    });
+    );
 
     await scheduler.triggerRun();
 
@@ -60,11 +60,11 @@ describe("FetchRunScheduler", () => {
     } as unknown as ExecuteFetchRunLifecycleUseCase;
     const logger = buildLogger();
 
-    const scheduler = new FetchRunScheduler({
+    const scheduler = new FetchRunScheduler(
       createFetchRunUseCase,
       executeFetchRunLifecycleUseCase,
       logger,
-    });
+    );
 
     await expect(scheduler.triggerRun()).resolves.toBeUndefined();
 
@@ -84,11 +84,11 @@ describe("FetchRunScheduler", () => {
     } as unknown as ExecuteFetchRunLifecycleUseCase;
     const logger = buildLogger();
 
-    const scheduler = new FetchRunScheduler({
+    const scheduler = new FetchRunScheduler(
       createFetchRunUseCase,
       executeFetchRunLifecycleUseCase,
       logger,
-    });
+    );
 
     await expect(scheduler.triggerRun()).resolves.toBeUndefined();
 

@@ -1,11 +1,14 @@
+import { inject, injectable } from "inversify";
 import type { PrismaClient } from "@prisma/client";
 import type { Job } from "../../../../domain/jobs/job.entity.js";
 import type { NormalizedJobInput } from "../../../../domain/jobs/normalized-job.entity.js";
 import type { JobsRepositoryPort } from "../../../../application/ports/output/jobs-repository.port.js";
 import { toDomainJob } from "./job.mapper.js";
+import { TYPES } from "../../../container/types.js";
 
+@injectable()
 export class PrismaJobsRepository implements JobsRepositoryPort {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(@inject(TYPES.PrismaClient) private readonly prisma: PrismaClient) {}
 
   async createIfNotExists(input: NormalizedJobInput): Promise<Job | null> {
     const existing = await this.prisma.job.findFirst({
