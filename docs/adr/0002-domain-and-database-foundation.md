@@ -1,7 +1,9 @@
 # ADR 0002: Domain Ports and Database Foundation
 
 ## Status
-Accepted
+Superseded by [ADR 0016](0016-anonymous-stateless-schema-and-runtime-migration.md) — the
+`profile` and `scores` tables described below are removed under the anonymous/stateless
+pivot (PRD v3.0, ADR 0015). Left unedited below as historical record.
 
 ## Date
 2026-05-23

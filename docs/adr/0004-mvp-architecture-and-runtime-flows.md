@@ -1,7 +1,12 @@
 # ADR 0004: MVP Architecture Baseline and Runtime Flows
 
 ## Status
-Accepted
+Superseded by [ADR 0016](0016-anonymous-stateless-schema-and-runtime-migration.md) — the
+canonical route contract and scoring invariants below (`/api/profile`, `/api/jobs/:id/rescore`,
+"score only unscored jobs by default") assumed the account-based, persisted-score model
+replaced by ADR 0015 (PRD v3.0). Hexagonal Architecture as mandatory backend structure and
+PostgreSQL as the persistence target remain in force. Left unedited below as historical
+record.
 
 ## Date
 2026-05-25
