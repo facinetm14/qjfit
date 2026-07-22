@@ -67,11 +67,14 @@ export class FranceTravailAuthClient {
     }
 
     const fetcher = this.options.fetcher ?? fetch;
+    // France Travail rejects the token request unless the scope also carries
+    // an `application_<client_id>` entry alongside the capability scopes.
+    const scope = `${this.options.scope} application_${this.options.clientId}`;
     const body = new URLSearchParams({
       grant_type: "client_credentials",
       client_id: this.options.clientId,
       client_secret: this.options.clientSecret,
-      scope: this.options.scope,
+      scope,
     }).toString();
 
     const response = await fetcher(this.options.authUrl, {
