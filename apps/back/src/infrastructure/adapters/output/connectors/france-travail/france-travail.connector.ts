@@ -6,6 +6,7 @@ import type {
 } from "../../../../../application/ports/output/fetch-source.port.js";
 import type { RawJob } from "../../../../../domain/sources/raw-job.entity.js";
 import { TYPES } from "../../../../container/types.js";
+import { FranceTravailAuthClient } from "./france-travail-auth.client.js";
 
 type FetchResponse = {
   ok: boolean;
@@ -48,7 +49,6 @@ const franceTravailResponseSchema = z.object({
 
 export interface FranceTravailConnectorOptions {
   readonly baseUrl: string;
-  readonly accessToken: string;
   readonly fetcher?: Fetcher;
 }
 
@@ -59,17 +59,17 @@ export class FranceTravailConnector implements FetchSourcePort {
   constructor(
     @inject(TYPES.FranceTravailConnectorOptions)
     private readonly options: FranceTravailConnectorOptions,
+    @inject(TYPES.FranceTravailAuthClient)
+    private readonly authClient: FranceTravailAuthClient,
   ) {}
 
   async fetch(_runId: string): Promise<FetchSourceResult> {
-    if (!this.options.accessToken) {
-      throw new Error("France Travail access token missing");
-    }
+    const accessToken = await this.authClient.getAccessToken();
 
     const fetcher = this.options.fetcher ?? fetch;
     const response = await fetcher(`${this.options.baseUrl}/offres/search`, {
       headers: {
-        Authorization: `Bearer ${this.options.accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
       },
     });
 

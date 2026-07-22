@@ -14,8 +14,19 @@ const envSchema = z.object({
     .refine((value) => cron.validate(value), {
       message: "FETCH_RUN_CRON_SCHEDULE must be a valid cron expression",
     }),
-  FRANCE_TRAVAIL_BASE_URL: z.string().default(""),
-  FRANCE_TRAVAIL_ACCESS_TOKEN: z.string().default(""),
+  FRANCE_TRAVAIL_BASE_URL: z
+    .string()
+    .default("https://api.francetravail.io/partenaire/offresdemploi/v2"),
+  FRANCE_TRAVAIL_AUTH_URL: z
+    .string()
+    .default(
+      "https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=/partenaire",
+    ),
+  FRANCE_TRAVAIL_SCOPE: z
+    .string()
+    .default("api_offresdemploiv2 o2dsoffre"),
+  FRANCE_TRAVAIL_CLIENT_ID: z.string().default(""),
+  FRANCE_TRAVAIL_CLIENT_SECRET: z.string().default(""),
   WTTJ_RSS_FEED_URL: z.string().default(""),
 });
 
