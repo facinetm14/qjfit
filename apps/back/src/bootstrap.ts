@@ -1,28 +1,14 @@
 import type { Logger } from "pino";
-import type { PrismaClient } from "@prisma/client";
 import dotenv from "dotenv";
 import fs from "node:fs";
 import path from "node:path";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { createLogger } from "./logger.js";
-import { getPrismaClient } from "./infrastructure/db/prisma-client.js";
-import { PrismaProfileRepository } from "./infrastructure/adapters/output/repositories/prisma-profile.repository.js";
-import { PrismaFetchLogsRepository } from "./infrastructure/adapters/output/repositories/prisma-fetch-logs.repository.js";
-import { PrismaFetchRunsRepository } from "./infrastructure/adapters/output/repositories/prisma-fetch-runs.repository.js";
-import { PrismaJobsRepository } from "./infrastructure/adapters/output/repositories/prisma-jobs.repository.js";
-import { UpsertProfileUseCase } from "./application/usecases/profile/upsert-profile.usecase.js";
-import { GetProfileUseCase } from "./application/usecases/profile/get-profile.usecase.js";
-import { CreateFetchRunUseCase } from "./application/usecases/fetch-runs/create-fetch-run.usecase.js";
-import { ExecuteFetchRunLifecycleUseCase } from "./application/usecases/fetch-runs/execute-fetch-run-lifecycle.usecase.js";
-import { NormalizeAndPersistJobsUseCase } from "./application/usecases/jobs/normalize-and-persist-jobs.usecase.js";
-import type { FetchSourcePort } from "./application/ports/output/fetch-source.port.js";
 
 interface BootstrapDeps {
   readonly env?: NodeJS.ProcessEnv;
   readonly logger?: Logger;
-  readonly prismaFactory?: () => PrismaClient;
-  readonly fetchSources?: readonly FetchSourcePort[];
 }
 
 export function bootstrap(deps: BootstrapDeps = {}): void {
@@ -55,25 +41,7 @@ export function bootstrap(deps: BootstrapDeps = {}): void {
     return;
   }
 
-  const prisma = deps.prismaFactory ? deps.prismaFactory() : getPrismaClient();
-  const profileRepository = new PrismaProfileRepository(prisma);
-  const fetchLogsRepository = new PrismaFetchLogsRepository(prisma);
-  const fetchRunsRepository = new PrismaFetchRunsRepository(prisma);
-  const jobsRepository = new PrismaJobsRepository(prisma);
-  const fetchSources = deps.fetchSources ?? [];
-  const normalizeJobsService = new NormalizeAndPersistJobsUseCase(jobsRepository);
-
-  const app = createApp(logger, {
-    getProfileService: new GetProfileUseCase(profileRepository),
-    upsertProfileService: new UpsertProfileUseCase(profileRepository),
-    createFetchRunService: new CreateFetchRunUseCase(fetchRunsRepository),
-    executeFetchRunLifecycleService: new ExecuteFetchRunLifecycleUseCase(
-      fetchRunsRepository,
-      fetchLogsRepository,
-      fetchSources,
-      normalizeJobsService,
-    ),
-  });
+  const app = createApp(logger);
 
   app.listen(config.PORT, () => {
     logger.info({ port: config.PORT }, "API listening");

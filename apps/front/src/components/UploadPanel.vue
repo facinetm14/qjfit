@@ -113,11 +113,12 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { PoolStats } from "../types/job.js";
+import { ClientEvents } from "../types/job.js";
 
 const props = defineProps<{ file: File | null; poolStats: PoolStats }>();
 const emit = defineEmits<{
-  (e: "select", file: File | null): void;
-  (e: "run"): void;
+  (e: typeof ClientEvents.CV_UPLOADED, file: File | null): void;
+  (e: typeof ClientEvents.CV_SUBMITTED): void;
 }>();
 
 const fileInputRef = ref<HTMLInputElement | null>(null);
@@ -135,18 +136,18 @@ function openFileDialog() {
 
 function onFileInputChange() {
   const file = fileInputRef.value?.files?.[0] ?? null;
-  emit("select", file);
+  emit(ClientEvents.CV_UPLOADED, file);
 }
 
 function onDrop(e: DragEvent) {
   isDragOver.value = false;
   const file = e.dataTransfer?.files?.[0];
-  if (file) emit("select", file);
+  if (file) emit(ClientEvents.CV_UPLOADED, file);
 }
 
 function clearFile() {
   if (fileInputRef.value) fileInputRef.value.value = "";
-  emit("select", null);
+  emit(ClientEvents.CV_UPLOADED, null);
 }
 </script>
 

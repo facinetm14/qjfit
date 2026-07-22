@@ -18,7 +18,6 @@ describe("toDomainJob", () => {
       salaryMax: 70000,
       experienceMin: 2,
       experienceMax: 5,
-      status: "new",
       fetchedAt: new Date("2026-05-01T00:00:00.000Z"),
       createdAt: new Date("2026-05-01T00:00:00.000Z"),
       updatedAt: new Date("2026-05-02T00:00:00.000Z"),
@@ -39,7 +38,6 @@ describe("toDomainJob", () => {
       sourceJobId: "src-1",
       dedupKey: "dedup-1",
       fetchedAt: record.fetchedAt,
-      status: "new",
     });
     expect(job).not.toHaveProperty("salaryMin");
     expect(job).not.toHaveProperty("createdAt");
