@@ -8,11 +8,6 @@ export interface FetchRunSchedulerDeps {
   readonly logger: Logger;
 }
 
-/**
- * Driving-side orchestrator for the cron-triggered job pool refresh (ADR 0016 §3).
- * Errors are caught here rather than left to propagate, since a tick runs detached
- * from any request context — an uncaught rejection would otherwise crash the process.
- */
 export class FetchRunScheduler {
   constructor(private readonly deps: FetchRunSchedulerDeps) {}
 
