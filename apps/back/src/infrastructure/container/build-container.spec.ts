@@ -3,7 +3,10 @@ import { buildContainer } from "./build-container.js";
 import { CreateFetchRunUseCase } from "../../application/usecases/fetch-runs/create-fetch-run.usecase.js";
 import { ExecuteFetchRunLifecycleUseCase } from "../../application/usecases/fetch-runs/execute-fetch-run-lifecycle.usecase.js";
 import { FetchRunScheduler } from "../adapters/input/scheduler/fetch-run-scheduler.js";
+import type { FetchRunsRepositoryPort } from "../../application/ports/output/fetch-runs-repository.port.js";
+import type { FetchSourcePort } from "../../application/ports/output/fetch-source.port.js";
 import type { AppConfig } from "../../config.js";
+import { TYPES } from "./types.js";
 
 function buildConfig(): AppConfig {
   return {
@@ -29,26 +32,28 @@ describe("buildContainer", () => {
   it("wires the fetch-run scheduler with its full dependency graph", () => {
     const container = buildContainer(buildConfig(), buildLogger());
 
-    const scheduler = container.resolve("fetchRunScheduler");
+    const scheduler = container.get(TYPES.FetchRunScheduler);
 
     expect(scheduler).toBeInstanceOf(FetchRunScheduler);
-    expect(container.resolve("createFetchRunUseCase")).toBeInstanceOf(
+    expect(container.get(TYPES.CreateFetchRunUseCase)).toBeInstanceOf(
       CreateFetchRunUseCase,
     );
     expect(
-      container.resolve("executeFetchRunLifecycleUseCase"),
+      container.get(TYPES.ExecuteFetchRunLifecycleUseCase),
     ).toBeInstanceOf(ExecuteFetchRunLifecycleUseCase);
-    expect(container.resolve("fetchSources")).toHaveLength(2);
+    expect(container.getAll<FetchSourcePort>(TYPES.FetchSource)).toHaveLength(
+      2,
+    );
   });
 
   it("resolves every dependency as a singleton across the graph", () => {
     const container = buildContainer(buildConfig(), buildLogger());
 
-    expect(container.resolve("fetchRunsRepository")).toBe(
-      container.resolve("fetchRunsRepository"),
-    );
-    expect(container.resolve("fetchRunScheduler")).toBe(
-      container.resolve("fetchRunScheduler"),
+    expect(
+      container.get<FetchRunsRepositoryPort>(TYPES.FetchRunsRepository),
+    ).toBe(container.get<FetchRunsRepositoryPort>(TYPES.FetchRunsRepository));
+    expect(container.get(TYPES.FetchRunScheduler)).toBe(
+      container.get(TYPES.FetchRunScheduler),
     );
   });
 });

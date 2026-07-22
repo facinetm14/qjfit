@@ -1,9 +1,11 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
+import { inject, injectable } from "inversify";
 import type {
   FetchSourcePort,
   FetchSourceResult,
 } from "../../../../../application/ports/output/fetch-source.port.js";
 import type { RawJob } from "../../../../../domain/sources/raw-job.entity.js";
+import { TYPES } from "../../../../container/types.js";
 
 type FetchResponse = {
   ok: boolean;
@@ -29,10 +31,14 @@ export interface WttjRssConnectorOptions {
   readonly fetcher?: Fetcher;
 }
 
+@injectable()
 export class WttjRssConnector implements FetchSourcePort {
   readonly source = "wttj-rss";
 
-  constructor(private readonly options: WttjRssConnectorOptions) {}
+  constructor(
+    @inject(TYPES.WttjRssConnectorOptions)
+    private readonly options: WttjRssConnectorOptions,
+  ) {}
 
   async fetch(_runId: string): Promise<FetchSourceResult> {
     const fetcher = this.options.fetcher ?? fetch;

@@ -6,6 +6,8 @@ import { createApp } from "./app.js";
 import { loadConfig, type AppConfig } from "./config.js";
 import { createLogger } from "./logger.js";
 import { buildContainer } from "./infrastructure/container/build-container.js";
+import { TYPES } from "./infrastructure/container/types.js";
+import { FetchRunScheduler } from "./infrastructure/adapters/input/scheduler/fetch-run-scheduler.js";
 import { startFetchRunCron } from "./infrastructure/adapters/input/scheduler/fetch-run-cron.js";
 
 interface BootstrapDeps {
@@ -15,7 +17,7 @@ interface BootstrapDeps {
 
 function startFetchRunScheduler(config: AppConfig, logger: Logger): void {
   const container = buildContainer(config, logger);
-  const scheduler = container.resolve("fetchRunScheduler");
+  const scheduler = container.get<FetchRunScheduler>(TYPES.FetchRunScheduler);
 
   startFetchRunCron(config.FETCH_RUN_CRON_SCHEDULE, scheduler, logger);
 }

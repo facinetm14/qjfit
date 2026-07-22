@@ -1,3 +1,4 @@
+import { inject, injectable } from "inversify";
 import type { RawJob } from "../../../domain/sources/raw-job.entity.js";
 import type { JobsRepositoryPort } from "../../ports/output/jobs-repository.port.js";
 import type { NormalizedJobInput } from "../../../domain/jobs/normalized-job.entity.js";
@@ -6,6 +7,7 @@ import type {
   ContractType,
   RemotePolicy,
 } from "../../../domain/jobs/job.entity.js";
+import { PORT_TYPES } from "../../tokens.js";
 
 const DEFAULT_CONTRACT_TYPE: ContractType = "Other";
 const DEFAULT_REMOTE_POLICY: RemotePolicy = "Unknown";
@@ -19,8 +21,12 @@ export interface NormalizeAndPersistJobsPort {
   execute(rawJobs: readonly RawJob[]): Promise<NormalizePersistResult>;
 }
 
+@injectable()
 export class NormalizeAndPersistJobsUseCase implements NormalizeAndPersistJobsPort {
-  constructor(private readonly jobsRepository: JobsRepositoryPort) {}
+  constructor(
+    @inject(PORT_TYPES.JobsRepository)
+    private readonly jobsRepository: JobsRepositoryPort,
+  ) {}
 
   async execute(rawJobs: readonly RawJob[]): Promise<NormalizePersistResult> {
     let created = 0;

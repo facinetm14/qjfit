@@ -1,25 +1,25 @@
+import { inject, injectable } from "inversify";
 import type { Logger } from "pino";
 import type { CreateFetchRunUseCase } from "../../../../application/usecases/fetch-runs/create-fetch-run.usecase.js";
 import type { ExecuteFetchRunLifecycleUseCase } from "../../../../application/usecases/fetch-runs/execute-fetch-run-lifecycle.usecase.js";
+import { TYPES } from "../../../container/types.js";
 
-export interface FetchRunSchedulerDeps {
-  readonly createFetchRunUseCase: CreateFetchRunUseCase;
-  readonly executeFetchRunLifecycleUseCase: ExecuteFetchRunLifecycleUseCase;
-  readonly logger: Logger;
-}
-
+@injectable()
 export class FetchRunScheduler {
-  constructor(private readonly deps: FetchRunSchedulerDeps) {}
+  constructor(
+    @inject(TYPES.CreateFetchRunUseCase)
+    private readonly createFetchRunUseCase: CreateFetchRunUseCase,
+    @inject(TYPES.ExecuteFetchRunLifecycleUseCase)
+    private readonly executeFetchRunLifecycleUseCase: ExecuteFetchRunLifecycleUseCase,
+    @inject(TYPES.Logger) private readonly logger: Logger,
+  ) {}
 
   async triggerRun(): Promise<void> {
-    const { createFetchRunUseCase, executeFetchRunLifecycleUseCase, logger } =
-      this.deps;
-
     try {
-      const run = await createFetchRunUseCase.execute();
-      await executeFetchRunLifecycleUseCase.execute(run.id);
+      const run = await this.createFetchRunUseCase.execute();
+      await this.executeFetchRunLifecycleUseCase.execute(run.id);
     } catch (error) {
-      logger.error({ err: error }, "Scheduled fetch run failed");
+      this.logger.error({ err: error }, "Scheduled fetch run failed");
     }
   }
 }

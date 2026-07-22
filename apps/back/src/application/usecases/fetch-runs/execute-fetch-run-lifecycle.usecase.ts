@@ -1,7 +1,9 @@
+import { inject, injectable, multiInject } from "inversify";
 import type { FetchLogsRepositoryPort } from "../../ports/output/fetch-logs-repository.port.js";
 import type { FetchRunsRepositoryPort } from "../../ports/output/fetch-runs-repository.port.js";
 import type { FetchSourcePort } from "../../ports/output/fetch-source.port.js";
 import type { NormalizeAndPersistJobsPort } from "../jobs/normalize-and-persist-jobs.usecase.js";
+import { PORT_TYPES } from "../../tokens.js";
 
 function toErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -10,11 +12,16 @@ function toErrorMessage(error: unknown): string {
   return "Unknown error";
 }
 
+@injectable()
 export class ExecuteFetchRunLifecycleUseCase {
   constructor(
+    @inject(PORT_TYPES.FetchRunsRepository)
     private readonly fetchRunsRepository: FetchRunsRepositoryPort,
+    @inject(PORT_TYPES.FetchLogsRepository)
     private readonly fetchLogsRepository: FetchLogsRepositoryPort,
+    @multiInject(PORT_TYPES.FetchSource)
     private readonly fetchSources: readonly FetchSourcePort[],
+    @inject(PORT_TYPES.NormalizeAndPersistJobsUseCase)
     private readonly normalizeAndPersistJobsService: NormalizeAndPersistJobsPort,
   ) {}
 
