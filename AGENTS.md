@@ -85,8 +85,10 @@ FETCH_RUN_CRON_SCHEDULE=0 */4 * * *
 # platform values below; only CLIENT_ID/CLIENT_SECRET need to come from your
 # app registered on francetravail.io. The connector exchanges these for a
 # bearer token via OAuth2 client-credentials (FranceTravailAuthClient),
-# caching it until shortly before expiry. Left blank, that source's OAuth2
-# token exchange fails and is logged to fetch_logs for that run; the other
+# caching it until shortly before expiry. SCOPE is only the capability
+# scopes — the code appends the required `application_<client_id>` entry
+# itself, do not add it here. Left blank, that source's OAuth2 token
+# exchange fails and is logged to fetch_logs for that run; the other
 # source still runs.
 FRANCE_TRAVAIL_BASE_URL=https://api.francetravail.io/partenaire/offresdemploi/v2
 FRANCE_TRAVAIL_AUTH_URL=https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=/partenaire
@@ -131,6 +133,7 @@ REDIS_URL=redis://redis:6379
 - Integration tests: full HTTP request through the app using `supertest`
 - Test file naming: `*.spec.ts` colocated with the source file
 - Run via `yarn test` (root, both workspaces) or `yarn test:back` / `yarn test:front`
+- **Never assert against an invented third-party contract.** When a fixture stands in for an external API's request/response shape (France Travail, WTTJ, Adzuna, JSearch, HelloWork, the LLM scoring provider, ...), that shape must come from real documentation, a real captured sample, or a maintained reference client's source — never guessed from general familiarity with "how OAuth2/REST usually looks." A test built on a guessed fixture only proves the code agrees with itself; it doesn't catch a wrong field name, a missing required param, or (as happened with France Travail's OAuth scope needing an `application_<client_id>` suffix) a whole request the real server would reject. Before trusting a connector fixture, verify it — cite the doc page or reference source in a comment — or flag it as unverified so it isn't mistaken for confidence it doesn't have.
 
 ### Git
 

@@ -53,7 +53,13 @@ describe("FranceTravailAuthClient", () => {
     expect(body.get("grant_type")).toBe("client_credentials");
     expect(body.get("client_id")).toBe("client-id");
     expect(body.get("client_secret")).toBe("client-secret");
-    expect(body.get("scope")).toBe("api_offresdemploiv2 o2dsoffre");
+    // France Travail requires an `application_<client_id>` suffix on top of
+    // the capability scopes, or the token request is rejected. Verified
+    // against a real working client (etiennekintzler/api-offres-emploi),
+    // not assumed.
+    expect(body.get("scope")).toBe(
+      "api_offresdemploiv2 o2dsoffre application_client-id",
+    );
   });
 
   it("caches the token until it is close to expiring", async () => {
