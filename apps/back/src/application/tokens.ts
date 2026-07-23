@@ -10,7 +10,6 @@ export const PORT_TYPES = {
   JobsRepository: Symbol.for("JobsRepository"),
   FetchSource: Symbol.for("FetchSource"),
   NormalizeAndPersistJobsUseCase: Symbol.for("NormalizeAndPersistJobsUseCase"),
-  CreateFetchRunUseCase: Symbol.for("CreateFetchRunUseCase"),
   ExecuteFetchRunLifecycleUseCase: Symbol.for(
     "ExecuteFetchRunLifecycleUseCase",
   ),
