@@ -11,6 +11,7 @@ import { FranceTravailAuthClient } from "./france-travail-auth.client.js";
 type FetchResponse = {
   ok: boolean;
   status: number;
+  headers: { get(name: string): string | null };
   json(): Promise<unknown>;
 };
 
@@ -20,6 +21,43 @@ type Fetcher = (
     readonly headers?: Record<string, string>;
   },
 ) => Promise<FetchResponse>;
+
+// France Travail's per-request `range` window is capped at 150 results —
+// verified against real clients (job-search-france-travail-api,
+// api-offres-emploi): the API returns a 400 for a wider span.
+const MAX_PAGE_SPAN = 150;
+
+// The API only ever exposes the first 1150 matching offers, i.e. `range`
+// windows from "0-0" up to "1000-1149" — verified against
+// github.com/creach-t/job-search-france-travail-api
+// (src/utils/constants.js: `MAX_TOTAL: 1150 // Limite navigable (range max
+// 0-1149)`). Paging past this index isn't a "get more" problem, it's a hard
+// platform limit.
+const MAX_NAVIGABLE_LAST_INDEX = 1149;
+
+// This app's registered France Travail rate limit; page requests are spaced
+// out to stay under it instead of relying on 429 retries.
+const REQUESTS_PER_SECOND_LIMIT = 10;
+const MIN_REQUEST_INTERVAL_MS = 1000 / REQUESTS_PER_SECOND_LIMIT;
+
+async function defaultSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseContentRangeTotal(response: FetchResponse): number | null {
+  const header = response.headers.get("Content-Range");
+  if (!header) {
+    return null;
+  }
+
+  // Documented/observed shape: "offres {first}-{last}/{total}".
+  const match = /^offres \d+-\d+\/(\d+)$/.exec(header);
+  if (!match) {
+    return null;
+  }
+
+  return Number(match[1]);
+}
 
 const franceTravailOfferSchema = z.object({
   id: z.string().optional(),
@@ -49,13 +87,10 @@ const franceTravailResponseSchema = z.object({
 
 export interface FranceTravailConnectorOptions {
   readonly baseUrl: string;
-  // "start-end" (e.g. "0-149"), max span 150 — sent as-is as the `range`
-  // query param. Verified against real clients (job-search-france-travail-api,
-  // api-offres-emploi), not assumed: France Travail paginates via a `range`
-  // query param, not an HTTP Range header, and echoes a Content-Range
-  // response header ("offres {first}-{last}/{total}").
-  readonly range: string;
+  // Requested `range` window size per page — clamped to MAX_PAGE_SPAN (150).
+  readonly pageSize: number;
   readonly fetcher?: Fetcher;
+  readonly sleep?: (ms: number) => Promise<void>;
 }
 
 @injectable()
@@ -71,30 +106,55 @@ export class FranceTravailConnector implements FetchSourcePort {
 
   async fetch(_runId: string): Promise<FetchSourceResult> {
     const accessToken = await this.authClient.getAccessToken();
-
     const fetcher = this.options.fetcher ?? fetch;
-    const url = `${this.options.baseUrl}/offres/search?range=${this.options.range}`;
-    const response = await fetcher(url, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+    const sleep = this.options.sleep ?? defaultSleep;
+    const pageSize = Math.min(this.options.pageSize, MAX_PAGE_SPAN);
 
-    if (!response.ok) {
-      throw new Error(
-        `France Travail request failed with status ${response.status}`,
-      );
+    const jobs: RawJob[] = [];
+    let offset = 0;
+    let isFirstRequest = true;
+
+    while (offset <= MAX_NAVIGABLE_LAST_INDEX) {
+      if (!isFirstRequest) {
+        await sleep(MIN_REQUEST_INTERVAL_MS);
+      }
+      isFirstRequest = false;
+
+      const rangeEnd = Math.min(offset + pageSize - 1, MAX_NAVIGABLE_LAST_INDEX);
+      const requestedCount = rangeEnd - offset + 1;
+      const url = `${this.options.baseUrl}/offres/search?range=${offset}-${rangeEnd}`;
+      const response = await fetcher(url, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `France Travail request failed with status ${response.status}`,
+        );
+      }
+
+      const payload = await response.json();
+      const parsed = franceTravailResponseSchema.safeParse(payload);
+      if (!parsed.success) {
+        throw new Error("France Travail response payload is invalid");
+      }
+
+      const pageJobs = parsed.data.resultats
+        .map((offer) => this.toRawJob(offer))
+        .filter((job): job is RawJob => job !== null);
+      jobs.push(...pageJobs);
+
+      const total = parseContentRangeTotal(response);
+      offset += pageSize;
+
+      const receivedFullPage = parsed.data.resultats.length >= requestedCount;
+      const reachedKnownTotal = total !== null && offset >= total;
+      if (!receivedFullPage || reachedKnownTotal) {
+        break;
+      }
     }
-
-    const payload = await response.json();
-    const parsed = franceTravailResponseSchema.safeParse(payload);
-    if (!parsed.success) {
-      throw new Error("France Travail response payload is invalid");
-    }
-
-    const jobs = parsed.data.resultats
-      .map((offer) => this.toRawJob(offer))
-      .filter((job): job is RawJob => job !== null);
 
     return { jobs };
   }
