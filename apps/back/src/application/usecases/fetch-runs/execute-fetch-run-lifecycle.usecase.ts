@@ -28,7 +28,9 @@ export class ExecuteFetchRunLifecycleUseCase {
     private readonly logger: LoggerPort,
   ) {}
 
-  async execute(runId: string): Promise<void> {
+  async execute(): Promise<void> {
+    const run = await this.fetchRunsRepository.createPending();
+    const runId = run.id;
     const startedAt = new Date();
     await this.fetchRunsRepository.markRunning(runId, startedAt);
     try {

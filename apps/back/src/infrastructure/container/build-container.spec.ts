@@ -1,6 +1,5 @@
 import type { Logger } from "pino";
 import { buildContainer } from "./build-container.js";
-import { CreateFetchRunUseCase } from "../../application/usecases/fetch-runs/create-fetch-run.usecase.js";
 import { ExecuteFetchRunLifecycleUseCase } from "../../application/usecases/fetch-runs/execute-fetch-run-lifecycle.usecase.js";
 import { FetchRunScheduler } from "../adapters/input/scheduler/fetch-run-scheduler.js";
 import type { FetchRunsRepositoryPort } from "../../application/ports/output/fetch-runs-repository.port.js";
@@ -40,9 +39,6 @@ describe("buildContainer", () => {
     const scheduler = container.get(TYPES.FetchRunScheduler);
 
     expect(scheduler).toBeInstanceOf(FetchRunScheduler);
-    expect(container.get(TYPES.CreateFetchRunUseCase)).toBeInstanceOf(
-      CreateFetchRunUseCase,
-    );
     expect(
       container.get(TYPES.ExecuteFetchRunLifecycleUseCase),
     ).toBeInstanceOf(ExecuteFetchRunLifecycleUseCase);
