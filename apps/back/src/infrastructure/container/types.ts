@@ -8,7 +8,6 @@ import { PORT_TYPES } from "../../application/tokens.js";
 export const TYPES = {
   ...PORT_TYPES,
   Config: Symbol.for("Config"),
-  Logger: Symbol.for("Logger"),
   PrismaClient: Symbol.for("PrismaClient"),
   FranceTravailConnectorOptions: Symbol.for("FranceTravailConnectorOptions"),
   FranceTravailAuthClientOptions: Symbol.for(

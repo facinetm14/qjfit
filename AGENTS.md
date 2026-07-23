@@ -64,9 +64,6 @@ The agent must never invent or hardcode values. All configuration comes from env
 
 ```bash
 DATABASE_URL=postgresql://QJFit:password@db:5432/QJFit
-# Only consumed by docker-compose.prod.yml's self-hosted `db` service — dev's
-# docker-compose.yml hardcodes these instead (ADR 0009). Must stay consistent
-# with the credentials embedded in DATABASE_URL above.
 POSTGRES_USER=QJFit
 POSTGRES_PASSWORD=password
 POSTGRES_DB=QJFit
@@ -76,42 +73,22 @@ PORT=3000
 CORS_ORIGIN=http://localhost:5173
 
 VITE_API_URL=http://localhost:3000
-
-# Cron expression for the in-process job pool refresh (ADR 0016 §3).
-# Defaults to every 4 hours when unset.
 FETCH_RUN_CRON_SCHEDULE=0 */4 * * *
 
-# France Travail connector. BASE_URL/AUTH_URL/SCOPE default to the real
-# platform values below; only CLIENT_ID/CLIENT_SECRET need to come from your
-# app registered on francetravail.io. The connector exchanges these for a
-# bearer token via OAuth2 client-credentials (FranceTravailAuthClient),
-# caching it until shortly before expiry. SCOPE is only the capability
-# scopes — the code appends the required `application_<client_id>` entry
-# itself, do not add it here. Left blank, that source's OAuth2 token
-# exchange fails and is logged to fetch_logs for that run; the other
-# source still runs.
+
 FRANCE_TRAVAIL_BASE_URL=https://api.francetravail.io/partenaire/offresdemploi/v2
 FRANCE_TRAVAIL_AUTH_URL=https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=/partenaire
 FRANCE_TRAVAIL_SCOPE=api_offresdemploiv2 o2dsoffre
 FRANCE_TRAVAIL_CLIENT_ID=
 FRANCE_TRAVAIL_CLIENT_SECRET=
-# Pagination for /offres/search, "start-end" (max span 150). France Travail
-# paginates via this `range` query param, not an HTTP Range header — the
-# response echoes a Content-Range header ("offres {first}-{last}/{total}").
-# Fetching beyond this single page (walking Content-Range across multiple
-# requests) isn't implemented yet.
-FRANCE_TRAVAIL_RESULTS_RANGE=0-149
+FRANCE_TRAVAIL_PAGE_SIZE=150
 
-# WTTJ RSS feed URL. Left blank, that source's fetch fails and is logged to
-# fetch_logs for that run; the other source still runs.
 WTTJ_RSS_FEED_URL=
 
-# Reserved for the Redis migration (ADR 0016) — not yet read by
-# apps/back/src/config.ts and not yet a service in docker-compose*.yml.
 REDIS_URL=redis://redis:6379
 ```
 
-`apps/back/src/config.ts` (Zod-validated) is the current source of truth for which variables the backend actually requires at boot — today that's `DATABASE_URL`, `NODE_ENV`, `PORT`, `CORS_ORIGIN`, `FETCH_RUN_CRON_SCHEDULE`, `FRANCE_TRAVAIL_BASE_URL`, `FRANCE_TRAVAIL_AUTH_URL`, `FRANCE_TRAVAIL_SCOPE`, `FRANCE_TRAVAIL_CLIENT_ID`, `FRANCE_TRAVAIL_CLIENT_SECRET`, `FRANCE_TRAVAIL_RESULTS_RANGE`, `WTTJ_RSS_FEED_URL`. When a required variable is missing or invalid at startup, the application must log a clear error message naming the variable and exit with code 1.
+`apps/back/src/config.ts` (Zod-validated) is the current source of truth for which variables the backend actually requires at boot — today that's `DATABASE_URL`, `NODE_ENV`, `PORT`, `CORS_ORIGIN`, `FETCH_RUN_CRON_SCHEDULE`, `FRANCE_TRAVAIL_BASE_URL`, `FRANCE_TRAVAIL_AUTH_URL`, `FRANCE_TRAVAIL_SCOPE`, `FRANCE_TRAVAIL_CLIENT_ID`, `FRANCE_TRAVAIL_CLIENT_SECRET`, `FRANCE_TRAVAIL_PAGE_SIZE`, `WTTJ_RSS_FEED_URL`. When a required variable is missing or invalid at startup, the application must log a clear error message naming the variable and exit with code 1.
 
 ## Coding conventions
 
