@@ -4,6 +4,7 @@
  * infrastructure.
  */
 export const PORT_TYPES = {
+  Logger: Symbol.for("Logger"),
   FetchRunsRepository: Symbol.for("FetchRunsRepository"),
   FetchLogsRepository: Symbol.for("FetchLogsRepository"),
   JobsRepository: Symbol.for("JobsRepository"),

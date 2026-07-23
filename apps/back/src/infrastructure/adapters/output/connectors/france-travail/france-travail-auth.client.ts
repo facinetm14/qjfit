@@ -25,9 +25,21 @@ const tokenResponseSchema = z.object({
 // France Travail's OAuth2 client-credentials tokens are typically valid for
 // ~1499s; used only when a response omits expires_in.
 const DEFAULT_TOKEN_TTL_SECONDS = 1499;
+
 // Refresh slightly before actual expiry so an in-flight request never races
 // against the token dying mid-call.
 const EXPIRY_SAFETY_MARGIN_MS = 30_000;
+
+// Transient DNS/connection failures (e.g. EAI_AGAIN) surface as a rejected
+// fetch rather than a response, so a couple of quick retries ride out a
+// momentary network blip instead of failing the whole source until the next
+// cron tick.
+const DEFAULT_MAX_RETRIES = 2;
+const DEFAULT_RETRY_DELAY_MS = 500;
+
+async function defaultSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export interface FranceTravailAuthClientOptions {
   readonly authUrl: string;
@@ -36,6 +48,9 @@ export interface FranceTravailAuthClientOptions {
   readonly scope: string;
   readonly fetcher?: Fetcher;
   readonly now?: () => number;
+  readonly maxRetries?: number;
+  readonly retryDelayMs?: number;
+  readonly sleep?: (ms: number) => Promise<void>;
 }
 
 interface CachedToken {
@@ -67,8 +82,7 @@ export class FranceTravailAuthClient {
     }
 
     const fetcher = this.options.fetcher ?? fetch;
-    // France Travail rejects the token request unless the scope also carries
-    // an `application_<client_id>` entry alongside the capability scopes.
+    
     const scope = `${this.options.scope} application_${this.options.clientId}`;
     const body = new URLSearchParams({
       grant_type: "client_credentials",
@@ -77,7 +91,7 @@ export class FranceTravailAuthClient {
       scope,
     }).toString();
 
-    const response = await fetcher(this.options.authUrl, {
+    const response = await this.fetchWithRetry(fetcher, this.options.authUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
@@ -103,5 +117,32 @@ export class FranceTravailAuthClient {
     };
 
     return this.cachedToken.accessToken;
+  }
+
+  private async fetchWithRetry(
+    fetcher: Fetcher,
+    url: string,
+    init: {
+      readonly method: string;
+      readonly headers: Record<string, string>;
+      readonly body: string;
+    },
+  ): Promise<FetchResponse> {
+    const maxRetries = this.options.maxRetries ?? DEFAULT_MAX_RETRIES;
+    const retryDelayMs = this.options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
+    const sleep = this.options.sleep ?? defaultSleep;
+
+    let attempt = 0;
+    for (;;) {
+      try {
+        return await fetcher(url, init);
+      } catch (error) {
+        attempt += 1;
+        if (attempt > maxRetries) {
+          throw error;
+        }
+        await sleep(retryDelayMs);
+      }
+    }
   }
 }

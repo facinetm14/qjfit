@@ -11,6 +11,7 @@ import type {
   FetchSourcePort,
   FetchSourceResult,
 } from "../../ports/output/fetch-source.port.js";
+import type { LoggerPort } from "../../ports/output/logger.port.js";
 import type {
   FetchLog,
   FetchRun,
@@ -136,11 +137,23 @@ class FailingFetchSource implements FetchSourcePort {
   }
 }
 
+class FakeLogger implements LoggerPort {
+  public readonly errors: Array<{
+    context: Record<string, unknown>;
+    message: string;
+  }> = [];
+
+  error(context: Record<string, unknown>, message: string): void {
+    this.errors.push({ context, message });
+  }
+}
+
 describe("ExecuteFetchRunLifecycleUseCase (integration)", () => {
   it("persists and dedups jobs from a succeeding source while isolating a failing source's error", async () => {
     const fetchRunsRepository = new FakeFetchRunsRepository();
     const fetchLogsRepository = new FakeFetchLogsRepository();
     const jobsRepository = new FakeJobsRepository();
+    const logger = new FakeLogger();
     const normalizeAndPersistJobs = new NormalizeAndPersistJobsUseCase(
       jobsRepository,
     );
@@ -152,6 +165,7 @@ describe("ExecuteFetchRunLifecycleUseCase (integration)", () => {
       fetchLogsRepository,
       [new SucceedingFetchSource(), new FailingFetchSource()],
       normalizeAndPersistJobs,
+      logger,
     );
 
     const run = await createFetchRunUseCase.execute();
@@ -172,5 +186,43 @@ describe("ExecuteFetchRunLifecycleUseCase (integration)", () => {
       status: "failed",
       message: "connector unreachable",
     });
+
+    expect(logger.errors).toHaveLength(1);
+    expect(logger.errors[0]?.message).toBe("Fetch source failed");
+    expect(logger.errors[0]?.context).toMatchObject({
+      runId: run.id,
+      source: "failing-source",
+    });
+  });
+
+  it("marks the run as failed, instead of completed, when every source fails", async () => {
+    const fetchRunsRepository = new FakeFetchRunsRepository();
+    const fetchLogsRepository = new FakeFetchLogsRepository();
+    const jobsRepository = new FakeJobsRepository();
+    const logger = new FakeLogger();
+    const normalizeAndPersistJobs = new NormalizeAndPersistJobsUseCase(
+      jobsRepository,
+    );
+    const createFetchRunUseCase = new CreateFetchRunUseCase(
+      fetchRunsRepository,
+    );
+    const lifecycle = new ExecuteFetchRunLifecycleUseCase(
+      fetchRunsRepository,
+      fetchLogsRepository,
+      [new FailingFetchSource(), new FailingFetchSource()],
+      normalizeAndPersistJobs,
+      logger,
+    );
+
+    const run = await createFetchRunUseCase.execute();
+    await lifecycle.execute(run.id);
+
+    expect(jobsRepository.created).toHaveLength(0);
+    expect(fetchRunsRepository.run.status).toBe("failed");
+
+    const aggregateFailureLog = logger.errors.find(
+      (entry) => entry.message === "All fetch sources failed; marking run as failed",
+    );
+    expect(aggregateFailureLog?.context).toMatchObject({ runId: run.id });
   });
 });

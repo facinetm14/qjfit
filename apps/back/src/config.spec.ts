@@ -72,7 +72,7 @@ describe('loadConfig', () => {
     expect(config.FRANCE_TRAVAIL_CLIENT_SECRET).toBe('');
   });
 
-  it('defaults FRANCE_TRAVAIL_RESULTS_RANGE to the first page of 150 results when unset', () => {
+  it('defaults FRANCE_TRAVAIL_PAGE_SIZE to 150 when unset', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
       NODE_ENV: 'development',
@@ -80,29 +80,29 @@ describe('loadConfig', () => {
       CORS_ORIGIN: 'http://localhost:5173'
     });
 
-    expect(config.FRANCE_TRAVAIL_RESULTS_RANGE).toBe('0-149');
+    expect(config.FRANCE_TRAVAIL_PAGE_SIZE).toBe(150);
   });
 
-  it('accepts a custom FRANCE_TRAVAIL_RESULTS_RANGE', () => {
+  it('accepts a custom FRANCE_TRAVAIL_PAGE_SIZE', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173',
-      FRANCE_TRAVAIL_RESULTS_RANGE: '150-299'
+      FRANCE_TRAVAIL_PAGE_SIZE: '50'
     });
 
-    expect(config.FRANCE_TRAVAIL_RESULTS_RANGE).toBe('150-299');
+    expect(config.FRANCE_TRAVAIL_PAGE_SIZE).toBe(50);
   });
 
-  it('rejects an invalid FRANCE_TRAVAIL_RESULTS_RANGE format', () => {
+  it('rejects a FRANCE_TRAVAIL_PAGE_SIZE above the API max span of 150', () => {
     expect(() => {
       loadConfig({
         DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
         NODE_ENV: 'development',
         PORT: '3000',
         CORS_ORIGIN: 'http://localhost:5173',
-        FRANCE_TRAVAIL_RESULTS_RANGE: 'not-a-range'
+        FRANCE_TRAVAIL_PAGE_SIZE: '151'
       });
     }).toThrow('Invalid environment configuration');
   });

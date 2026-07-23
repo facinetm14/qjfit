@@ -147,6 +147,59 @@ describe("FranceTravailAuthClient", () => {
     );
   });
 
+  it("retries the token request after a transient network error and succeeds", async () => {
+    const sleeps: number[] = [];
+    let callCount = 0;
+    const fetcher = async () => {
+      callCount += 1;
+      if (callCount < 3) {
+        throw new TypeError(
+          "fetch failed: getaddrinfo EAI_AGAIN entreprise.francetravail.fr",
+        );
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ access_token: "token-1", expires_in: 1499 }),
+      };
+    };
+
+    const client = new FranceTravailAuthClient({
+      ...buildOptions(),
+      fetcher,
+      sleep: async (ms: number) => {
+        sleeps.push(ms);
+      },
+    });
+
+    const token = await client.getAccessToken();
+
+    expect(token).toBe("token-1");
+    expect(callCount).toBe(3);
+    expect(sleeps).toHaveLength(2);
+  });
+
+  it("gives up after exhausting retries and throws the last network error", async () => {
+    let callCount = 0;
+    const fetcher = async () => {
+      callCount += 1;
+      throw new TypeError(
+        "fetch failed: getaddrinfo EAI_AGAIN entreprise.francetravail.fr",
+      );
+    };
+
+    const client = new FranceTravailAuthClient({
+      ...buildOptions(),
+      fetcher,
+      sleep: async () => {},
+    });
+
+    await expect(client.getAccessToken()).rejects.toThrow(
+      "fetch failed: getaddrinfo EAI_AGAIN entreprise.francetravail.fr",
+    );
+    expect(callCount).toBe(3);
+  });
+
   it("throws on an invalid token response payload", async () => {
     const fetcher = async () => ({
       ok: true,

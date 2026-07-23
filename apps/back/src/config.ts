@@ -27,15 +27,11 @@ const envSchema = z.object({
     .default("api_offresdemploiv2 o2dsoffre"),
   FRANCE_TRAVAIL_CLIENT_ID: z.string().default(""),
   FRANCE_TRAVAIL_CLIENT_SECRET: z.string().default(""),
-  // "start-end", max span 150 (e.g. "0-149"). Sent as the `range` query
-  // param on /offres/search — verified against real clients, not assumed
-  // (see FranceTravailConnectorOptions.range doc comment).
-  FRANCE_TRAVAIL_RESULTS_RANGE: z
-    .string()
-    .default("0-149")
-    .refine((value) => /^\d+-\d+$/.test(value), {
-      message: 'FRANCE_TRAVAIL_RESULTS_RANGE must be formatted as "start-end"',
-    }),
+  // Requested `range` window size per page of /offres/search, clamped to the
+  // API's documented max span of 150 — see FranceTravailConnector's
+  // MAX_PAGE_SPAN doc comment. The connector paginates through successive
+  // windows of this size until the source is exhausted.
+  FRANCE_TRAVAIL_PAGE_SIZE: z.coerce.number().int().min(1).max(150).default(150),
   WTTJ_RSS_FEED_URL: z.string().default(""),
 });
 
