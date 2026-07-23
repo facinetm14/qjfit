@@ -5,8 +5,10 @@ import type {
   FetchSourceResult,
 } from "../../../../../application/ports/output/fetch-source.port.js";
 import type { RawJob } from "../../../../../domain/sources/raw-job.entity.js";
+import { parseDate } from "../../../../../domain/sources/parse-date.js";
 import { TYPES } from "../../../../container/types.js";
 import { FranceTravailAuthClient } from "./france-travail-auth.client.js";
+import { firstNonBlank } from "../shared/first-non-blank.js";
 
 type FetchResponse = {
   ok: boolean;
@@ -118,6 +120,7 @@ export class FranceTravailConnector implements FetchSourcePort {
       if (!isFirstRequest) {
         await sleep(MIN_REQUEST_INTERVAL_MS);
       }
+      
       isFirstRequest = false;
 
       const rangeEnd = Math.min(offset + pageSize - 1, MAX_NAVIGABLE_LAST_INDEX);
@@ -173,21 +176,12 @@ export class FranceTravailConnector implements FetchSourcePort {
       source: this.source,
       sourceJobId: offer.id ?? null,
       title,
-      company: offer.entreprise?.nom?.trim() || "Unknown",
-      location: offer.lieuTravail?.libelle?.trim() || "Unknown",
-      description: offer.description?.trim() || "",
+      company: firstNonBlank([offer.entreprise?.nom], "Unknown"),
+      location: firstNonBlank([offer.lieuTravail?.libelle], "Unknown"),
+      description: firstNonBlank([offer.description], ""),
       url,
-      publishedAt: this.toDateOrNull(offer.dateCreation),
+      publishedAt: parseDate(offer.dateCreation),
       raw: offer,
     };
-  }
-
-  private toDateOrNull(value: string | undefined): Date | null {
-    if (!value) {
-      return null;
-    }
-
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
   }
 }
