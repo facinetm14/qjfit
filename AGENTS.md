@@ -55,6 +55,7 @@ QJFit/
 19. **Don't reintroduce the pre-pivot surface ADR 0016 supersedes.** `profile.controller.ts`, `fetch.controller.ts`, the `Profile`/`Score` Prisma models, and `Job.status`/`JobStatus` have already been deleted (see the Project overview migration note above) — don't add a persisted profile, a persisted score, or a public fetch-trigger route back.
 20. **Use Yarn, not npm.** This is a Yarn workspaces monorepo (`yarn.lock`, `"packageManager": "yarn@1.22.22"`, `corepack enable` in CI and every Dockerfile). Run workspace scripts via `yarn workspace @qjfit/back <script>` / `yarn workspace @qjfit/front <script>`, or the root aliases (`yarn dev:back`, `yarn dev:front`, `yarn test`, `yarn typecheck`, `yarn lint`, each with `:back`/`:front` variants). Don't run `npm install` or commit a `package-lock.json`.
 21. **Never push, once you're done, you just commit. You're are not responsible for pushing**
+22. **Avoid unecessary or useless comments, the code should be self-explained. Add only non-obvious comments**
 
 ---
 
@@ -130,18 +131,18 @@ REDIS_URL=redis://redis:6379
 
 ## Common failure modes to avoid
 
-| Mistake                                                                                                 | Correct approach                                                                                      |
-| ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Awaiting `POST /api/match` response until scoring completes                                             | Return immediately with 202 Accepted + match ticket, poll for results                                 |
-| Persisting a job's score keyed only by `jobId`                                                          | Score depends on the uploaded CV too — compute per match request, never persist/cache per job         |
-| Storing the uploaded CV (file, text, or parsed profile)                                                 | Process in memory only; discard once the match request resolves                                       |
-| Trusting a client-supplied IP header for rate limiting                                                  | Read the IP from the trusted reverse-proxy hop only (Caddy/Traefik)                                   |
-| Using `:latest` Docker tag                                                                              | Always use `$GITHUB_SHA` as the image tag                                                             |
-| Storing API keys in the DB                                                                              | Read from `process.env` at runtime only                                                               |
-| Crashing on LLM parse failure                                                                           | Catch, log with Pino, drop that job from the result set, continue                                     |
-| Blocking the event loop during batch scoring                                                            | Use `Promise.allSettled` with a max concurrency of 5                                                  |
-| Hardcoding the profile (stack, location) in the scoring prompt                                          | Always parse it from the uploaded CV for that match request                                           |
-| Forgetting to run `prisma migrate deploy` on VPS after deploy                                           | Handled by the one-shot `migrate` container gating `back`'s startup — don't remove that `depends_on`  |
-| Reintroducing a persisted profile/score model or a public fetch-trigger route                          | Superseded by ADR 0016 — build `/api/match`, `/api/jobs`, etc. instead; the fetch pool refresh is cron-only |
-| Running `npm install` or committing a `package-lock.json`                                               | This is a Yarn workspaces monorepo — use `yarn install` and respect `yarn.lock`                       |
-| Adding an HTTP route to trigger the job pool refresh                                                    | The refresh is cron-only, wired in `bootstrap.ts` via `node-cron` — no route calls the connectors      |
+| Mistake                                                                       | Correct approach                                                                                            |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Awaiting `POST /api/match` response until scoring completes                   | Return immediately with 202 Accepted + match ticket, poll for results                                       |
+| Persisting a job's score keyed only by `jobId`                                | Score depends on the uploaded CV too — compute per match request, never persist/cache per job               |
+| Storing the uploaded CV (file, text, or parsed profile)                       | Process in memory only; discard once the match request resolves                                             |
+| Trusting a client-supplied IP header for rate limiting                        | Read the IP from the trusted reverse-proxy hop only (Caddy/Traefik)                                         |
+| Using `:latest` Docker tag                                                    | Always use `$GITHUB_SHA` as the image tag                                                                   |
+| Storing API keys in the DB                                                    | Read from `process.env` at runtime only                                                                     |
+| Crashing on LLM parse failure                                                 | Catch, log with Pino, drop that job from the result set, continue                                           |
+| Blocking the event loop during batch scoring                                  | Use `Promise.allSettled` with a max concurrency of 5                                                        |
+| Hardcoding the profile (stack, location) in the scoring prompt                | Always parse it from the uploaded CV for that match request                                                 |
+| Forgetting to run `prisma migrate deploy` on VPS after deploy                 | Handled by the one-shot `migrate` container gating `back`'s startup — don't remove that `depends_on`        |
+| Reintroducing a persisted profile/score model or a public fetch-trigger route | Superseded by ADR 0016 — build `/api/match`, `/api/jobs`, etc. instead; the fetch pool refresh is cron-only |
+| Running `npm install` or committing a `package-lock.json`                     | This is a Yarn workspaces monorepo — use `yarn install` and respect `yarn.lock`                             |
+| Adding an HTTP route to trigger the job pool refresh                          | The refresh is cron-only, wired in `bootstrap.ts` via `node-cron` — no route calls the connectors           |
