@@ -1,4 +1,3 @@
-import { CreateFetchRunUseCase } from "./create-fetch-run.usecase.js";
 import { ExecuteFetchRunLifecycleUseCase } from "./execute-fetch-run-lifecycle.usecase.js";
 import { NormalizeAndPersistJobsUseCase } from "../jobs/normalize-and-persist-jobs.usecase.js";
 import type { FetchRunsRepositoryPort } from "../../ports/output/fetch-runs-repository.port.js";
@@ -157,9 +156,6 @@ describe("ExecuteFetchRunLifecycleUseCase (integration)", () => {
     const normalizeAndPersistJobs = new NormalizeAndPersistJobsUseCase(
       jobsRepository,
     );
-    const createFetchRunUseCase = new CreateFetchRunUseCase(
-      fetchRunsRepository,
-    );
     const lifecycle = new ExecuteFetchRunLifecycleUseCase(
       fetchRunsRepository,
       fetchLogsRepository,
@@ -168,8 +164,7 @@ describe("ExecuteFetchRunLifecycleUseCase (integration)", () => {
       logger,
     );
 
-    const run = await createFetchRunUseCase.execute();
-    await lifecycle.execute(run.id);
+    await lifecycle.execute();
 
     expect(jobsRepository.created).toHaveLength(1);
     expect(fetchRunsRepository.run.status).toBe("completed");
@@ -190,7 +185,7 @@ describe("ExecuteFetchRunLifecycleUseCase (integration)", () => {
     expect(logger.errors).toHaveLength(1);
     expect(logger.errors[0]?.message).toBe("Fetch source failed");
     expect(logger.errors[0]?.context).toMatchObject({
-      runId: run.id,
+      runId: fetchRunsRepository.run.id,
       source: "failing-source",
     });
   });
@@ -203,9 +198,6 @@ describe("ExecuteFetchRunLifecycleUseCase (integration)", () => {
     const normalizeAndPersistJobs = new NormalizeAndPersistJobsUseCase(
       jobsRepository,
     );
-    const createFetchRunUseCase = new CreateFetchRunUseCase(
-      fetchRunsRepository,
-    );
     const lifecycle = new ExecuteFetchRunLifecycleUseCase(
       fetchRunsRepository,
       fetchLogsRepository,
@@ -214,8 +206,7 @@ describe("ExecuteFetchRunLifecycleUseCase (integration)", () => {
       logger,
     );
 
-    const run = await createFetchRunUseCase.execute();
-    await lifecycle.execute(run.id);
+    await lifecycle.execute();
 
     expect(jobsRepository.created).toHaveLength(0);
     expect(fetchRunsRepository.run.status).toBe("failed");
@@ -223,6 +214,8 @@ describe("ExecuteFetchRunLifecycleUseCase (integration)", () => {
     const aggregateFailureLog = logger.errors.find(
       (entry) => entry.message === "All fetch sources failed; marking run as failed",
     );
-    expect(aggregateFailureLog?.context).toMatchObject({ runId: run.id });
+    expect(aggregateFailureLog?.context).toMatchObject({
+      runId: fetchRunsRepository.run.id,
+    });
   });
 });
