@@ -5,7 +5,9 @@ import type {
   FetchSourceResult,
 } from "../../../../../application/ports/output/fetch-source.port.js";
 import type { RawJob } from "../../../../../domain/sources/raw-job.entity.js";
+import { parseDate } from "../../../../../domain/sources/parse-date.js";
 import { TYPES } from "../../../../container/types.js";
+import { firstNonBlank } from "../shared/first-non-blank.js";
 
 type FetchResponse = {
   ok: boolean;
@@ -96,14 +98,14 @@ export class WttjRssConnector implements FetchSourcePort {
       source: this.source,
       sourceJobId: this.readString(item.guid),
       title,
-      company:
-        this.readString(item.company) ||
-        this.readString(item.author) ||
+      company: firstNonBlank(
+        [this.readString(item.company), this.readString(item.author)],
         "Unknown",
-      location: this.readString(item.location) || "Unknown",
-      description: this.readString(item.description) || "",
+      ),
+      location: firstNonBlank([this.readString(item.location)], "Unknown"),
+      description: firstNonBlank([this.readString(item.description)], ""),
       url,
-      publishedAt: this.toDateOrNull(this.readString(item.pubDate)),
+      publishedAt: parseDate(this.readString(item.pubDate)),
       raw: item,
     };
   }
@@ -115,14 +117,5 @@ export class WttjRssConnector implements FetchSourcePort {
     }
 
     return null;
-  }
-
-  private toDateOrNull(value: string | null): Date | null {
-    if (!value) {
-      return null;
-    }
-
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
   }
 }
