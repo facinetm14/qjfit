@@ -10,6 +10,11 @@ import type { JobsRepositoryPort } from "../../ports/output/jobs-repository.port
 import type { LoggerPort } from "../../ports/output/logger.port.js";
 import type { Job } from "../../../domain/jobs/job.entity.js";
 import type { MatchTicket } from "../../../domain/match/match-ticket.entity.js";
+import type { ScoredJob } from "../../../domain/scoring/scored-job.entity.js";
+import type {
+  ScoreMatchCandidatesInput,
+  ScoreMatchCandidatesPort,
+} from "../scoring/score-match-candidates.usecase.js";
 import { CV_MAX_FILE_SIZE_BYTES } from "../../../domain/cv/cv-upload.entity.js";
 import { UnsupportedCvFileTypeError } from "../../../domain/cv/errors/unsupported-cv-file-type.error.js";
 import { CvFileTooLargeError } from "../../../domain/cv/errors/cv-file-too-large.error.js";
@@ -42,14 +47,14 @@ class FakeMatchTicketStore implements MatchTicketStorePort {
     this.tickets.set(id, { id, status: "pending", createdAt });
   }
 
-  async markCompleted(id: string, jobs: readonly Job[]): Promise<void> {
+  async markCompleted(id: string, results: readonly ScoredJob[]): Promise<void> {
     const existing = this.tickets.get(id);
     if (!existing) return;
     this.tickets.set(id, {
       id,
       status: "completed",
       createdAt: existing.createdAt,
-      jobs,
+      results,
     });
   }
 
@@ -84,6 +89,28 @@ class FakeJobsRepository implements JobsRepositoryPort {
       throw this.failure;
     }
     return this.jobs;
+  }
+}
+
+class FakeScoreMatchCandidates implements ScoreMatchCandidatesPort {
+  calls: ScoreMatchCandidatesInput[] = [];
+  constructor(private readonly failure?: Error) {}
+
+  async execute(input: ScoreMatchCandidatesInput): Promise<readonly ScoredJob[]> {
+    this.calls.push(input);
+    if (this.failure) {
+      throw this.failure;
+    }
+    return input.jobs.map((job) => ({
+      job,
+      score: 80,
+      summary: "Good match",
+      matchReasons: [],
+      missingSkills: [],
+      seniorityFit: "good",
+      redFlags: [],
+      rankingScore: 80,
+    }));
   }
 }
 
@@ -134,6 +161,7 @@ describe("CreateMatchRequestUseCase", () => {
       new FakeCvTextExtractor(),
       matchTicketStore,
       jobsRepository,
+      new FakeScoreMatchCandidates(),
       new FakeLogger(),
     );
 
@@ -148,14 +176,16 @@ describe("CreateMatchRequestUseCase", () => {
     expect(ticket?.status).toBe("pending");
   });
 
-  it("eventually completes the ticket with jobs from the pool", async () => {
+  it("eventually completes the ticket with scored results from the pool, using the parsed CV context", async () => {
     const matchTicketStore = new FakeMatchTicketStore();
     const jobs = [buildJob()];
+    const scoreMatchCandidates = new FakeScoreMatchCandidates();
     const useCase = new CreateMatchRequestUseCase(
       new FakeRateLimiter(allowedDecision()),
-      new FakeCvTextExtractor(),
+      new FakeCvTextExtractor("Backend Developer, Paris, CDI"),
       matchTicketStore,
       new FakeJobsRepository(jobs),
+      scoreMatchCandidates,
       new FakeLogger(),
     );
 
@@ -167,7 +197,16 @@ describe("CreateMatchRequestUseCase", () => {
     await flushMicrotasks();
 
     const ticket = await matchTicketStore.get(ticketId);
-    expect(ticket).toMatchObject({ status: "completed", jobs });
+    expect(ticket).toMatchObject({
+      status: "completed",
+      results: [{ job: jobs[0], score: 80 }],
+    });
+    expect(scoreMatchCandidates.calls[0]?.jobs).toEqual(jobs);
+    expect(scoreMatchCandidates.calls[0]?.cvContext).toMatchObject({
+      targetRole: "Backend Developer",
+      location: "Paris",
+      contractTypes: ["CDI"],
+    });
   });
 
   it("marks the ticket failed when the candidate lookup throws", async () => {
@@ -178,6 +217,7 @@ describe("CreateMatchRequestUseCase", () => {
       new FakeCvTextExtractor(),
       matchTicketStore,
       new FakeJobsRepository([], new Error("pool unavailable")),
+      new FakeScoreMatchCandidates(),
       logger,
     );
 
@@ -196,6 +236,32 @@ describe("CreateMatchRequestUseCase", () => {
     expect(logger.errors).toHaveLength(1);
   });
 
+  it("marks the ticket failed when scoring itself throws", async () => {
+    const matchTicketStore = new FakeMatchTicketStore();
+    const logger = new FakeLogger();
+    const useCase = new CreateMatchRequestUseCase(
+      new FakeRateLimiter(allowedDecision()),
+      new FakeCvTextExtractor(),
+      matchTicketStore,
+      new FakeJobsRepository([buildJob()]),
+      new FakeScoreMatchCandidates(new Error("scoring provider unavailable")),
+      logger,
+    );
+
+    const { ticketId } = await useCase.execute({
+      cvFile: { buffer: Buffer.from("cv"), mimeType: "application/pdf" },
+      ip: "203.0.113.5",
+      now: new Date("2026-07-24T10:00:00.000Z"),
+    });
+    await flushMicrotasks();
+
+    const ticket = await matchTicketStore.get(ticketId);
+    expect(ticket).toMatchObject({
+      status: "failed",
+      error: "scoring provider unavailable",
+    });
+  });
+
   it("rejects an oversized file before consuming the rate limit or extracting text", async () => {
     const rateLimiter = new FakeRateLimiter(allowedDecision());
     const cvTextExtractor = new FakeCvTextExtractor();
@@ -204,6 +270,7 @@ describe("CreateMatchRequestUseCase", () => {
       cvTextExtractor,
       new FakeMatchTicketStore(),
       new FakeJobsRepository(),
+      new FakeScoreMatchCandidates(),
       new FakeLogger(),
     );
 
@@ -229,6 +296,7 @@ describe("CreateMatchRequestUseCase", () => {
       new FakeCvTextExtractor(),
       new FakeMatchTicketStore(),
       new FakeJobsRepository(),
+      new FakeScoreMatchCandidates(),
       new FakeLogger(),
     );
 
@@ -256,6 +324,7 @@ describe("CreateMatchRequestUseCase", () => {
       cvTextExtractor,
       matchTicketStore,
       new FakeJobsRepository(),
+      new FakeScoreMatchCandidates(),
       new FakeLogger(),
     );
 

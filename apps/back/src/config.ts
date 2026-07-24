@@ -34,6 +34,11 @@ const envSchema = z.object({
   // windows of this size until the source is exhausted.
   FRANCE_TRAVAIL_PAGE_SIZE: z.coerce.number().int().min(1).max(150).default(150),
   WTTJ_RSS_FEED_URL: z.string().default(""),
+  // PRD §3.4: recency tiebreak takes the top N most-recent relevance-filtered
+  // jobs as LLM-scoring candidates.
+  SCORING_CANDIDATE_LIMIT: z.coerce.number().int().min(1).default(50),
+  // PRD §3.4 final ranking: ranking_score = score * exp(-days_since_posted / decay_days).
+  SCORING_DECAY_DAYS: z.coerce.number().int().min(1).default(14),
 });
 
 export type AppConfig = Readonly<z.infer<typeof envSchema>>;

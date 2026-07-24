@@ -1,6 +1,7 @@
 import type { Logger } from "pino";
 import { buildContainer } from "./build-container.js";
 import { ExecuteFetchRunLifecycleUseCase } from "../../application/usecases/fetch-runs/execute-fetch-run-lifecycle.usecase.js";
+import { ScoreMatchCandidatesUseCase } from "../../application/usecases/scoring/score-match-candidates.usecase.js";
 import { FetchRunScheduler } from "../adapters/input/scheduler/fetch-run-scheduler.js";
 import type { FetchRunsRepositoryPort } from "../../application/ports/output/fetch-runs-repository.port.js";
 import type { FetchSourcePort } from "../../application/ports/output/fetch-source.port.js";
@@ -23,6 +24,8 @@ function buildConfig(): AppConfig {
     FRANCE_TRAVAIL_CLIENT_SECRET: "client-secret",
     FRANCE_TRAVAIL_PAGE_SIZE: 150,
     WTTJ_RSS_FEED_URL: "https://wttj.example/rss",
+    SCORING_CANDIDATE_LIMIT: 50,
+    SCORING_DECAY_DAYS: 14,
   };
 }
 
@@ -48,6 +51,9 @@ describe("buildContainer", () => {
     expect(container.getAll<FetchSourcePort>(TYPES.FetchSource)).toHaveLength(
       1,
     );
+    expect(
+      container.get(TYPES.ScoreMatchCandidatesUseCase),
+    ).toBeInstanceOf(ScoreMatchCandidatesUseCase);
   });
 
   it("resolves every dependency as a singleton across the graph", () => {
