@@ -10,7 +10,9 @@ import type { JobsRepositoryPort } from "../../ports/output/jobs-repository.port
 import type { LoggerPort } from "../../ports/output/logger.port.js";
 import { validateCvUpload } from "../../../domain/cv/validate-cv-upload.js";
 import { extractCvContext } from "../../../domain/cv/extract-cv-context.js";
+import type { CvContext } from "../../../domain/cv/cv-context.entity.js";
 import { MatchRateLimitExceededError } from "../../../domain/rate-limiting/errors/match-rate-limit-exceeded.error.js";
+import type { ScoreMatchCandidatesPort } from "../scoring/score-match-candidates.usecase.js";
 import { PORT_TYPES } from "../../tokens.js";
 
 export interface CreateMatchRequestInput {
@@ -41,6 +43,8 @@ export class CreateMatchRequestUseCase {
     private readonly matchTicketStore: MatchTicketStorePort,
     @inject(PORT_TYPES.JobsRepository)
     private readonly jobsRepository: JobsRepositoryPort,
+    @inject(PORT_TYPES.ScoreMatchCandidatesUseCase)
+    private readonly scoreMatchCandidatesUseCase: ScoreMatchCandidatesPort,
     @inject(PORT_TYPES.Logger)
     private readonly logger: LoggerPort,
   ) {}
@@ -59,30 +63,33 @@ export class CreateMatchRequestUseCase {
     }
 
     const text = await this.cvTextExtractor.extract(input.cvFile);
-    // The relevance pre-filter/LLM scoring that will consume this context is
-    // out of scope for this issue (wired in as a follow-up) — extracting it
-    // here only proves the in-memory parsing contract; it is never persisted.
-    extractCvContext(text);
+    const cvContext = extractCvContext(text);
 
     const ticketId = randomUUID();
     await this.matchTicketStore.createPending(ticketId, input.now);
 
     queueMicrotask(() => {
-      this.runMatchPipeline(ticketId).catch((error) => {
-        this.logger.error(
-          { ticketId, err: error },
-          "Match pipeline failed",
-        );
+      this.runMatchPipeline(ticketId, cvContext, input.now).catch((error) => {
+        this.logger.error({ ticketId, err: error }, "Match pipeline failed");
       });
     });
 
     return { ticketId };
   }
 
-  private async runMatchPipeline(ticketId: string): Promise<void> {
+  private async runMatchPipeline(
+    ticketId: string,
+    cvContext: CvContext,
+    now: Date,
+  ): Promise<void> {
     try {
       const jobs = await this.jobsRepository.findMany();
-      await this.matchTicketStore.markCompleted(ticketId, jobs);
+      const results = await this.scoreMatchCandidatesUseCase.execute({
+        cvContext,
+        jobs,
+        now,
+      });
+      await this.matchTicketStore.markCompleted(ticketId, results);
     } catch (error) {
       await this.matchTicketStore.markFailed(ticketId, toErrorMessage(error));
       throw error;
