@@ -130,3 +130,20 @@ into `node-cron` — then exits. It adds no container, no deploy step, and no HT
 it does not reopen the publicly/internally routed endpoint this ADR rejected. In prod, run it
 via `docker compose -f docker-compose.prod.yml exec back node apps/back/dist/run-jobs-cli.js`
 against the already-running `back` container.
+
+## Follow-up: §2/§4 route contract and Redis adapters (implemented)
+
+`POST /api/match` and `GET /api/match/:id` are wired per §2: upload validation (PDF/DOCX,
+5MB max, rejected before parsing via multer's `fileFilter`/`limits` and the domain-level
+`validateCvUpload`), in-memory CV text extraction (`pdf-parse`/`mammoth`) and heuristic
+`CvContext` parsing (`domain/cv/extract-cv-context.ts` — deterministic keyword/regex rules,
+not an LLM call), and the async ticket flow (`queueMicrotask` fire-and-forget, `202` with a
+ticket id, `GET` polling the Redis-backed store). §4's `RateLimiterPort`/`MatchTicketStorePort`
+are implemented as `RedisRateLimiterAdapter` (2/IP/day, TTL to midnight UTC) and
+`RedisMatchTicketStoreAdapter` (10-minute TTL); `docker-compose.yml`/`docker-compose.prod.yml`
+now both have a `redis` service.
+
+Still out of scope (tracked as follow-up work, not this ADR): the ticket's background pipeline
+currently completes with the raw, unfiltered candidate pool (`JobsRepositoryPort.findMany()`)
+and no scores — PRD §3.4's relevance pre-filter, recency tiebreak, and LLM scoring are a
+drop-in replacement for that placeholder step, not yet built.
