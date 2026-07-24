@@ -108,6 +108,27 @@ describe("filterRelevantJobs", () => {
 
     const result = filterRelevantJobs(cvContext, [matching, nonMatching]);
 
-    expect(result).toEqual([matching]);
+    expect(result).toEqual([{ job: matching, relevanceScore: 1 }]);
+  });
+
+  it("carries each job's relevanceScore forward instead of collapsing it to pass/fail", () => {
+    const cvContext = buildCvContext({
+      targetRole: "Backend Engineer",
+      techStack: ["TypeScript", "Docker"],
+      location: "Paris",
+    });
+    const strongMatch = buildJob({ id: "strong" });
+    const weakMatch = buildJob({
+      id: "weak",
+      title: "Receptionist",
+      description: "We use Ruby on Rails.",
+    });
+
+    const result = filterRelevantJobs(cvContext, [weakMatch, strongMatch]);
+
+    expect(result).toEqual([
+      { job: weakMatch, relevanceScore: 1 },
+      { job: strongMatch, relevanceScore: 4 },
+    ]);
   });
 });
