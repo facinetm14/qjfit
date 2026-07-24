@@ -9,6 +9,7 @@ export const TYPES = {
   ...PORT_TYPES,
   Config: Symbol.for("Config"),
   PrismaClient: Symbol.for("PrismaClient"),
+  RedisClient: Symbol.for("RedisClient"),
   FranceTravailConnectorOptions: Symbol.for("FranceTravailConnectorOptions"),
   FranceTravailAuthClientOptions: Symbol.for(
     "FranceTravailAuthClientOptions",
@@ -16,4 +17,7 @@ export const TYPES = {
   FranceTravailAuthClient: Symbol.for("FranceTravailAuthClient"),
   WttjRssConnectorOptions: Symbol.for("WttjRssConnectorOptions"),
   FetchRunScheduler: Symbol.for("FetchRunScheduler"),
+  PdfCvTextExtractor: Symbol.for("PdfCvTextExtractor"),
+  PdfCvTextExtractorOptions: Symbol.for("PdfCvTextExtractorOptions"),
+  DocxCvTextExtractor: Symbol.for("DocxCvTextExtractor"),
 } as const;

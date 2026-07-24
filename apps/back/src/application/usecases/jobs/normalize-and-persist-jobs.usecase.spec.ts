@@ -28,6 +28,10 @@ class FakeJobsRepository implements JobsRepositoryPort {
       fetchedAt: input.fetchedAt,
     };
   }
+
+  async findMany(): Promise<readonly Job[]> {
+    return [];
+  }
 }
 
 describe("NormalizeAndPersistJobsUseCase", () => {

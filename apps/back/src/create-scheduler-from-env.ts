@@ -1,3 +1,4 @@
+import type { Container } from "inversify";
 import type { Logger } from "pino";
 import type { AppConfig } from "./config.js";
 import { createLogger } from "./logger.js";
@@ -15,6 +16,7 @@ export interface SchedulerBoot {
   readonly config: AppConfig;
   readonly logger: Logger;
   readonly scheduler: FetchRunScheduler;
+  readonly container: Container;
 }
 
 export function createSchedulerFromEnv(
@@ -32,5 +34,5 @@ export function createSchedulerFromEnv(
   const container = buildContainer(config, logger);
   const scheduler = container.get<FetchRunScheduler>(TYPES.FetchRunScheduler);
 
-  return { config, logger, scheduler };
+  return { config, logger, scheduler, container };
 }

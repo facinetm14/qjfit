@@ -1,10 +1,21 @@
-import { Prisma, type PrismaClient } from "@prisma/client";
+// Integration tests against a real Postgres instance (see docker-compose.yml's
+// `db` service, or CI's Postgres service container) — a mocked PrismaClient
+// only proves this code calls a mock the way the test expects, not that
+// Prisma/Postgres actually behave that way (e.g. that a unique-constraint
+// violation really is error code P2002).
+import { PrismaClient } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { PrismaJobsRepository } from "./prisma-jobs.repository.js";
 import type { NormalizedJobInput } from "../../../../domain/jobs/normalized-job.entity.js";
+
+const TEST_DATABASE_URL =
+  process.env.TEST_DATABASE_URL ??
+  "postgresql://QJFit:password@localhost:5432/QJFit";
 
 function buildInput(
   overrides: Partial<NormalizedJobInput> = {},
 ): NormalizedJobInput {
+  const unique = randomUUID();
   return {
     title: "Backend Engineer",
     company: "Acme",
@@ -12,103 +23,118 @@ function buildInput(
     contractType: "Other",
     remotePolicy: "Unknown",
     description: "desc",
-    url: "https://example.com/job-1",
-    source: "france-travail",
-    sourceJobId: "FT-1",
-    dedupKey: "dedup-key-1",
+    url: `https://example.com/job-${unique}`,
+    source: `integration-test-${unique}`,
+    sourceJobId: unique,
+    dedupKey: `dedup-${unique}`,
     fetchedAt: new Date("2026-05-01T00:00:00.000Z"),
     ...overrides,
   };
 }
 
-function buildPrisma(overrides: {
-  findFirst?: jest.Mock;
-  create?: jest.Mock;
-}): PrismaClient {
-  return {
-    job: {
-      findFirst: overrides.findFirst ?? jest.fn().mockResolvedValue(null),
-      create: overrides.create ?? jest.fn(),
-    },
-  } as unknown as PrismaClient;
-}
+describe("PrismaJobsRepository (integration)", () => {
+  const prisma = new PrismaClient({
+    datasources: { db: { url: TEST_DATABASE_URL } },
+  });
+  const repo = new PrismaJobsRepository(prisma);
+  const createdSources: string[] = [];
 
-function uniqueConstraintError(): Prisma.PrismaClientKnownRequestError {
-  return new Prisma.PrismaClientKnownRequestError(
-    "Unique constraint failed on the fields: (`source`,`sourceJobId`)",
-    {
-      code: "P2002",
-      clientVersion: "5.22.0",
-      meta: { target: ["source", "sourceJobId"] },
-    },
-  );
-}
+  afterEach(async () => {
+    if (createdSources.length > 0) {
+      await prisma.job.deleteMany({
+        where: { source: { in: createdSources } },
+      });
+      createdSources.length = 0;
+    }
+  });
 
-describe("PrismaJobsRepository", () => {
-  it("checks both dedupKey and (source, sourceJobId) for an existing job", async () => {
-    const findFirst = jest.fn().mockResolvedValue(null);
-    const create = jest.fn().mockResolvedValue({
-      id: "job-1",
-      ...buildInput(),
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  it("creates a job when nothing matches its dedupKey or (source, sourceJobId)", async () => {
+    const input = buildInput();
+    createdSources.push(input.source);
+
+    const job = await repo.createIfNotExists(input);
+
+    expect(job).toMatchObject({
+      title: input.title,
+      company: input.company,
+      source: input.source,
+      dedupKey: input.dedupKey,
     });
-    const repo = new PrismaJobsRepository(buildPrisma({ findFirst, create }));
+  });
 
-    await repo.createIfNotExists(buildInput());
+  it("returns null and creates nothing when the dedupKey already exists, even under a different source", async () => {
+    const input = buildInput();
+    createdSources.push(input.source);
+    await repo.createIfNotExists(input);
 
-    expect(findFirst).toHaveBeenCalledWith({
-      where: {
-        OR: [
-          { dedupKey: "dedup-key-1" },
-          { source: "france-travail", sourceJobId: "FT-1" },
-        ],
+    const duplicateSource = `integration-test-${randomUUID()}`;
+    createdSources.push(duplicateSource);
+    const duplicate = await repo.createIfNotExists({
+      ...input,
+      source: duplicateSource,
+      sourceJobId: randomUUID(),
+      url: `https://example.com/job-${randomUUID()}`,
+    });
+
+    expect(duplicate).toBeNull();
+    const stored = await prisma.job.findMany({
+      where: { source: duplicateSource },
+    });
+    expect(stored).toHaveLength(0);
+  });
+
+  it("returns null and creates nothing when (source, sourceJobId) already exists, even under a different dedupKey", async () => {
+    const input = buildInput();
+    createdSources.push(input.source);
+    await repo.createIfNotExists(input);
+
+    const duplicate = await repo.createIfNotExists({
+      ...input,
+      dedupKey: `dedup-${randomUUID()}`,
+      url: `https://example.com/job-${randomUUID()}`,
+    });
+
+    expect(duplicate).toBeNull();
+  });
+
+  it("allows only one winner when two concurrent requests race to create the same job", async () => {
+    const input = buildInput();
+    createdSources.push(input.source);
+
+    const [first, second] = await Promise.all([
+      repo.createIfNotExists(input),
+      repo.createIfNotExists(input),
+    ]);
+
+    const results = [first, second];
+    expect(results.filter((result) => result !== null)).toHaveLength(1);
+    expect(results.filter((result) => result === null)).toHaveLength(1);
+  });
+
+  it("propagates unexpected errors instead of silently swallowing them as null", async () => {
+    const unreachable = new PrismaClient({
+      datasources: {
+        db: { url: "postgresql://QJFit:password@localhost:59999/QJFit" },
       },
     });
+    const brokenRepo = new PrismaJobsRepository(unreachable);
+
+    await expect(brokenRepo.createIfNotExists(buildInput())).rejects.toThrow();
+
+    await unreachable.$disconnect();
   });
 
-  it("omits the sourceJobId branch when sourceJobId is null", async () => {
-    const findFirst = jest.fn().mockResolvedValue(null);
-    const create = jest.fn().mockResolvedValue({
-      id: "job-1",
-      ...buildInput({ sourceJobId: null }),
-    });
-    const repo = new PrismaJobsRepository(buildPrisma({ findFirst, create }));
+  it("findMany returns every job in the pool, including newly created ones", async () => {
+    const input = buildInput();
+    createdSources.push(input.source);
+    await repo.createIfNotExists(input);
 
-    await repo.createIfNotExists(buildInput({ sourceJobId: null }));
+    const jobs = await repo.findMany();
 
-    expect(findFirst).toHaveBeenCalledWith({
-      where: { OR: [{ dedupKey: "dedup-key-1" }] },
-    });
-  });
-
-  it("returns null without creating when a matching job already exists", async () => {
-    const findFirst = jest.fn().mockResolvedValue({ id: "existing-job" });
-    const create = jest.fn();
-    const repo = new PrismaJobsRepository(buildPrisma({ findFirst, create }));
-
-    const result = await repo.createIfNotExists(buildInput());
-
-    expect(result).toBeNull();
-    expect(create).not.toHaveBeenCalled();
-  });
-
-  it("returns null instead of throwing when create() races into a unique constraint violation", async () => {
-    const findFirst = jest.fn().mockResolvedValue(null);
-    const create = jest.fn().mockRejectedValue(uniqueConstraintError());
-    const repo = new PrismaJobsRepository(buildPrisma({ findFirst, create }));
-
-    const result = await repo.createIfNotExists(buildInput());
-
-    expect(result).toBeNull();
-  });
-
-  it("re-throws unexpected errors from create()", async () => {
-    const findFirst = jest.fn().mockResolvedValue(null);
-    const dbFailure = new Error("connection lost");
-    const create = jest.fn().mockRejectedValue(dbFailure);
-    const repo = new PrismaJobsRepository(buildPrisma({ findFirst, create }));
-
-    await expect(repo.createIfNotExists(buildInput())).rejects.toThrow(
-      dbFailure,
-    );
+    expect(jobs.some((job) => job.source === input.source)).toBe(true);
   });
 });
