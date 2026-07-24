@@ -67,6 +67,20 @@ describe("extractCvContext", () => {
     expect(context.techStack.filter((tech) => tech === "Python")).toHaveLength(1);
   });
 
+  it("recognizes a stated French region as the location, alongside city keywords", () => {
+    const context = extractCvContext(
+      "Développeur Backend, mobile en Île-de-France pour la bonne opportunité.",
+    );
+
+    expect(context.location).toBe("Île-de-France");
+  });
+
+  it("prefers a stated city over a stated region when both appear", () => {
+    const context = extractCvContext("Basé à Paris, en Île-de-France.");
+
+    expect(context.location).toBe("Paris");
+  });
+
   describe("role spacing/hyphenation variants", () => {
     it.each([
       ["Fullstack Developer", "Full Stack Developer"],

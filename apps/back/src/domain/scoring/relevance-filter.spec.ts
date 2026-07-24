@@ -106,6 +106,38 @@ describe("computeRelevanceScore", () => {
 
       expect(computeRelevanceScore(cvContext, job)).toBe(2);
     });
+
+    it("passes a job in Massy (dept 91) for a CV stating Île-de-France regional mobility", () => {
+      const cvContext = buildCvContext({ targetRole: "Backend Engineer", location: "Île-de-France" });
+      const job = buildJob({ title: "Backend Engineer", location: "91 - MASSY" });
+
+      expect(computeRelevanceScore(cvContext, job)).toBeGreaterThan(0);
+    });
+
+    it("still passes only Paris-area jobs for a CV stating the specific city Paris (unchanged behavior)", () => {
+      const cvContext = buildCvContext({ targetRole: "Backend Engineer", location: "Paris" });
+      const parisJob = buildJob({ title: "Backend Engineer", location: "75 - PARIS" });
+      const lyonJob = buildJob({ title: "Backend Engineer", location: "69 - LYON" });
+
+      expect(computeRelevanceScore(cvContext, parisJob)).toBeGreaterThan(0);
+      expect(computeRelevanceScore(cvContext, lyonJob)).toBe(0);
+    });
+
+    it("rejects a job in a different region from a CV's stated region", () => {
+      const cvContext = buildCvContext({ targetRole: "Backend Engineer", location: "Île-de-France" });
+      const job = buildJob({ title: "Backend Engineer", location: "69 - LYON" });
+
+      expect(computeRelevanceScore(cvContext, job)).toBe(0);
+    });
+
+    it("degrades to plain substring matching when the CV's location doesn't resolve against either table", () => {
+      const cvContext = buildCvContext({ targetRole: "Backend Engineer", location: "Springfield" });
+      const noMatch = buildJob({ title: "Backend Engineer", location: "75 - PARIS" });
+      const literalMatch = buildJob({ title: "Backend Engineer", location: "Springfield, USA" });
+
+      expect(computeRelevanceScore(cvContext, noMatch)).toBe(0);
+      expect(computeRelevanceScore(cvContext, literalMatch)).toBeGreaterThan(0);
+    });
   });
 
   describe("tech stack and contract type", () => {
