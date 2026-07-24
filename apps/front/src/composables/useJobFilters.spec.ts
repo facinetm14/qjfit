@@ -5,13 +5,13 @@ import type { MatchedJob } from '../types/job.js';
 
 function buildJob(overrides: Partial<MatchedJob> = {}): MatchedJob {
   return {
-    id: 1,
+    id: 'job-1',
     title: 'Backend Engineer',
     company: 'Acme',
     location: 'Paris',
     contract: 'CDI',
     remote: 'Full',
-    source: 'WTTJ',
+    source: 'wttj-rss',
     score: 80,
     daysAgo: 2,
     summary: '',
@@ -25,39 +25,39 @@ function buildJob(overrides: Partial<MatchedJob> = {}): MatchedJob {
 
 describe('useJobFilters', () => {
   it('includes all jobs by default', () => {
-    const jobs = ref<MatchedJob[]>([buildJob({ id: 1 }), buildJob({ id: 2, source: 'France Travail' })]);
+    const jobs = ref<MatchedJob[]>([buildJob({ id: '1' }), buildJob({ id: '2', source: 'france-travail' })]);
     const { filteredJobs } = useJobFilters(jobs);
-    expect(filteredJobs.value.map((j) => j.id)).toEqual([1, 2]);
+    expect(filteredJobs.value.map((j) => j.id)).toEqual(['1', '2']);
   });
 
   it('toggleSource removes a source from the active set and re-filters reactively', () => {
-    const jobs = ref<MatchedJob[]>([buildJob({ id: 1, source: 'WTTJ' }), buildJob({ id: 2, source: 'France Travail' })]);
+    const jobs = ref<MatchedJob[]>([buildJob({ id: '1', source: 'wttj-rss' }), buildJob({ id: '2', source: 'france-travail' })]);
     const { filteredJobs, toggleSource } = useJobFilters(jobs);
 
-    toggleSource('France Travail');
+    toggleSource('france-travail');
 
-    expect(filteredJobs.value.map((j) => j.id)).toEqual([1]);
+    expect(filteredJobs.value.map((j) => j.id)).toEqual(['1']);
   });
 
   it('toggleContract and toggleRemote can be toggled back on', () => {
-    const jobs = ref<MatchedJob[]>([buildJob({ id: 1, contract: 'CDD', remote: 'On-site' })]);
+    const jobs = ref<MatchedJob[]>([buildJob({ id: '1', contract: 'CDD', remote: 'OnSite' })]);
     const { filteredJobs, toggleContract, toggleRemote } = useJobFilters(jobs);
 
     toggleContract('CDD');
-    toggleRemote('On-site');
+    toggleRemote('OnSite');
     expect(filteredJobs.value).toEqual([]);
 
     toggleContract('CDD');
-    toggleRemote('On-site');
-    expect(filteredJobs.value.map((j) => j.id)).toEqual([1]);
+    toggleRemote('OnSite');
+    expect(filteredJobs.value.map((j) => j.id)).toEqual(['1']);
   });
 
   it('minScore filters out low scores reactively', () => {
-    const jobs = ref<MatchedJob[]>([buildJob({ id: 1, score: 90 }), buildJob({ id: 2, score: 30 })]);
+    const jobs = ref<MatchedJob[]>([buildJob({ id: '1', score: 90 }), buildJob({ id: '2', score: 30 })]);
     const { filteredJobs, minScore } = useJobFilters(jobs);
 
     minScore.value = 50;
 
-    expect(filteredJobs.value.map((j) => j.id)).toEqual([1]);
+    expect(filteredJobs.value.map((j) => j.id)).toEqual(['1']);
   });
 });
