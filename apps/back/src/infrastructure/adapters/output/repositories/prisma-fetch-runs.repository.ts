@@ -1,9 +1,12 @@
+import { inject, injectable } from 'inversify';
 import type { PrismaClient } from '@prisma/client';
 import type { FetchRun } from '../../../../domain/fetch-runs/fetch-run.entity.js';
 import type { FetchRunsRepositoryPort } from '../../../../application/ports/output/fetch-runs-repository.port.js';
+import { TYPES } from '../../../container/types.js';
 
+@injectable()
 export class PrismaFetchRunsRepository implements FetchRunsRepositoryPort {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(@inject(TYPES.PrismaClient) private readonly prisma: PrismaClient) {}
 
   async createPending(): Promise<FetchRun> {
     return this.prisma.fetchRun.create({
