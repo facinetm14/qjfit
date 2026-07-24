@@ -6,6 +6,7 @@ import { bindConnectors } from "./bindings/bind-connectors.js";
 import { bindRepositories } from "./bindings/bind-repositories.js";
 import { bindUsecases } from "./bindings/bind-usecases.js";
 import { bindServices } from "./bindings/bind-services.js";
+import { bindCvParsing } from "./bindings/bind-cv-parsing.js";
 
 export function buildContainer(config: AppConfig, logger: Logger): Container {
   const container = new Container();
@@ -13,6 +14,7 @@ export function buildContainer(config: AppConfig, logger: Logger): Container {
   bindCore(container, config, logger);
   bindConnectors(container, config);
   bindRepositories(container);
+  bindCvParsing(container);
   bindUsecases(container);
   bindServices(container);
 

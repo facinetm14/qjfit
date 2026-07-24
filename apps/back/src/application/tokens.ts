@@ -13,4 +13,5 @@ export const PORT_TYPES = {
   ExecuteFetchRunLifecycleUseCase: Symbol.for(
     "ExecuteFetchRunLifecycleUseCase",
   ),
+  CvTextExtractor: Symbol.for("CvTextExtractor"),
 } as const;
