@@ -7,6 +7,7 @@ import { bindRepositories } from "./bindings/bind-repositories.js";
 import { bindUsecases } from "./bindings/bind-usecases.js";
 import { bindServices } from "./bindings/bind-services.js";
 import { bindCvParsing } from "./bindings/bind-cv-parsing.js";
+import { bindRateLimiting } from "./bindings/bind-rate-limiting.js";
 
 export function buildContainer(config: AppConfig, logger: Logger): Container {
   const container = new Container();
@@ -15,6 +16,7 @@ export function buildContainer(config: AppConfig, logger: Logger): Container {
   bindConnectors(container, config);
   bindRepositories(container);
   bindCvParsing(container);
+  bindRateLimiting(container);
   bindUsecases(container);
   bindServices(container);
 
