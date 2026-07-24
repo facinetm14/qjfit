@@ -7,11 +7,11 @@
       </div>
       <div style="flex: 1">
         <div class="card-meta-top">
-          <span class="source-tag">{{ job.source.toUpperCase() }}</span>
+          <span class="source-tag">{{ sourceLabel(job.source).toUpperCase() }}</span>
           <span class="posted-ago">{{ job.daysAgo === 0 ? 'today' : `${job.daysAgo}d ago` }}</span>
         </div>
         <div class="card-title">{{ job.title }}</div>
-        <div class="card-sub">{{ job.company }} · {{ job.location }} · {{ job.contract }} · {{ job.remote }} remote</div>
+        <div class="card-sub">{{ job.company }} · {{ job.location }} · {{ job.contract }} · {{ remotePolicyLabel(job.remote) }}</div>
       </div>
     </div>
 
@@ -35,7 +35,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { scoreTier } from '../types/job.js';
+import { remotePolicyLabel, scoreTier, sourceLabel } from '../types/job.js';
 import type { MatchedJob } from '../types/job.js';
 
 const props = defineProps<{ job: MatchedJob; index: number }>();
