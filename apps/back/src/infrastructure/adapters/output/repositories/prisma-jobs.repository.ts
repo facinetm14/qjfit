@@ -58,4 +58,9 @@ export class PrismaJobsRepository implements JobsRepositoryPort {
       throw error;
     }
   }
+
+  async findMany(): Promise<readonly Job[]> {
+    const records = await this.prisma.job.findMany();
+    return records.map(toDomainJob);
+  }
 }
