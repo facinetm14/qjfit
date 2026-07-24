@@ -1,83 +1,91 @@
-import type { Redis } from "ioredis";
+// Integration tests against a real Redis instance (see docker-compose.yml's
+// `redis` service, or CI's Redis service container) — a mocked ioredis client
+// only proves this code calls a mock the way the test expects, not that a
+// real INCR/PEXPIRE against real Redis behaves that way.
+import { Redis } from "ioredis";
+import { randomUUID } from "node:crypto";
 import { RedisRateLimiterAdapter } from "./redis-rate-limiter.adapter.js";
+import { MAX_MATCH_REQUESTS_PER_DAY } from "../../../../domain/rate-limiting/rate-limit-policy.js";
+import { toCalendarDateKey } from "../../../../domain/rate-limiting/rate-limit-window.js";
 
-function buildRedis(overrides: {
-  incr?: jest.Mock;
-  pexpire?: jest.Mock;
-}): Redis {
-  return {
-    incr: overrides.incr ?? jest.fn(),
-    pexpire: overrides.pexpire ?? jest.fn().mockResolvedValue(1),
-  } as unknown as Redis;
+const TEST_REDIS_URL = process.env.TEST_REDIS_URL ?? "redis://localhost:6379";
+
+function buildKey(ip: string, now: Date): string {
+  return `match-rate-limit:${ip}:${toCalendarDateKey(now)}`;
 }
 
-describe("RedisRateLimiterAdapter", () => {
-  it("allows the first request of the day and sets a TTL until midnight", async () => {
-    const incr = jest.fn().mockResolvedValue(1);
-    const pexpire = jest.fn().mockResolvedValue(1);
-    const redis = buildRedis({ incr, pexpire });
-    const adapter = new RedisRateLimiterAdapter(redis);
-    const now = new Date("2026-07-24T10:00:00.000Z");
+describe("RedisRateLimiterAdapter (integration)", () => {
+  const redis = new Redis(TEST_REDIS_URL);
+  const adapter = new RedisRateLimiterAdapter(redis);
+  const keysToClean: string[] = [];
 
-    const decision = await adapter.consume("203.0.113.5", now);
-
-    expect(decision.allowed).toBe(true);
-    expect(decision.remaining).toBe(1);
-    expect(decision.resetAt).toEqual(new Date("2026-07-25T00:00:00.000Z"));
-    expect(incr).toHaveBeenCalledWith(
-      "match-rate-limit:203.0.113.5:2026-07-24",
-    );
-    expect(pexpire).toHaveBeenCalledWith(
-      "match-rate-limit:203.0.113.5:2026-07-24",
-      14 * 60 * 60 * 1000,
-    );
+  afterEach(async () => {
+    if (keysToClean.length > 0) {
+      await redis.del(...keysToClean);
+      keysToClean.length = 0;
+    }
   });
 
-  it("allows the second request of the day without resetting the TTL", async () => {
-    const incr = jest.fn().mockResolvedValue(2);
-    const pexpire = jest.fn();
-    const redis = buildRedis({ incr, pexpire });
-    const adapter = new RedisRateLimiterAdapter(redis);
+  afterAll(async () => {
+    await redis.quit();
+  });
 
-    const decision = await adapter.consume(
-      "203.0.113.5",
-      new Date("2026-07-24T10:00:00.000Z"),
-    );
+  it("allows the first request of the day and sets a real TTL until midnight", async () => {
+    const ip = randomUUID();
+    const now = new Date("2026-07-24T10:00:00.000Z");
+    keysToClean.push(buildKey(ip, now));
+
+    const decision = await adapter.consume(ip, now);
 
     expect(decision.allowed).toBe(true);
-    expect(decision.remaining).toBe(0);
-    expect(pexpire).not.toHaveBeenCalled();
+    expect(decision.remaining).toBe(MAX_MATCH_REQUESTS_PER_DAY - 1);
+    expect(decision.resetAt).toEqual(new Date("2026-07-25T00:00:00.000Z"));
+
+    const ttl = await redis.pttl(buildKey(ip, now));
+    const fourteenHoursMs = 14 * 60 * 60 * 1000;
+    expect(ttl).toBeGreaterThan(fourteenHoursMs - 5000);
+    expect(ttl).toBeLessThanOrEqual(fourteenHoursMs);
+  });
+
+  it("allows requests up to the daily limit without resetting the TTL on repeat requests", async () => {
+    const ip = randomUUID();
+    const now = new Date("2026-07-24T10:00:00.000Z");
+    keysToClean.push(buildKey(ip, now));
+    const pexpireSpy = jest.spyOn(redis, "pexpire");
+
+    await adapter.consume(ip, now);
+    const secondDecision = await adapter.consume(ip, now);
+
+    expect(secondDecision.allowed).toBe(true);
+    expect(secondDecision.remaining).toBe(0);
+    expect(pexpireSpy).toHaveBeenCalledTimes(1);
+
+    pexpireSpy.mockRestore();
   });
 
   it("rejects a 3rd request from the same IP on the same calendar day", async () => {
-    const incr = jest.fn().mockResolvedValue(3);
-    const redis = buildRedis({ incr });
-    const adapter = new RedisRateLimiterAdapter(redis);
+    const ip = randomUUID();
+    const now = new Date("2026-07-24T10:00:00.000Z");
+    keysToClean.push(buildKey(ip, now));
 
-    const decision = await adapter.consume(
-      "203.0.113.5",
-      new Date("2026-07-24T10:00:00.000Z"),
-    );
+    await adapter.consume(ip, now);
+    await adapter.consume(ip, now);
+    const thirdDecision = await adapter.consume(ip, now);
 
-    expect(decision.allowed).toBe(false);
-    expect(decision.remaining).toBe(0);
+    expect(thirdDecision.allowed).toBe(false);
+    expect(thirdDecision.remaining).toBe(0);
   });
 
   it("uses a fresh key (and thus a fresh count) once the calendar day rolls over", async () => {
-    const incr = jest.fn().mockResolvedValue(1);
-    const redis = buildRedis({ incr });
-    const adapter = new RedisRateLimiterAdapter(redis);
+    const ip = randomUUID();
+    const day1 = new Date("2026-07-24T23:59:59.000Z");
+    const day2 = new Date("2026-07-25T00:00:00.000Z");
+    keysToClean.push(buildKey(ip, day1), buildKey(ip, day2));
 
-    await adapter.consume("203.0.113.5", new Date("2026-07-24T23:59:59.000Z"));
-    await adapter.consume("203.0.113.5", new Date("2026-07-25T00:00:00.000Z"));
+    const day1Decision = await adapter.consume(ip, day1);
+    const day2Decision = await adapter.consume(ip, day2);
 
-    expect(incr).toHaveBeenNthCalledWith(
-      1,
-      "match-rate-limit:203.0.113.5:2026-07-24",
-    );
-    expect(incr).toHaveBeenNthCalledWith(
-      2,
-      "match-rate-limit:203.0.113.5:2026-07-25",
-    );
+    expect(day1Decision.remaining).toBe(MAX_MATCH_REQUESTS_PER_DAY - 1);
+    expect(day2Decision.remaining).toBe(MAX_MATCH_REQUESTS_PER_DAY - 1);
   });
 });

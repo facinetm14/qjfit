@@ -1,15 +1,14 @@
-import type { Redis } from "ioredis";
+// Integration tests against a real Redis instance (see docker-compose.yml's
+// `redis` service, or CI's Redis service container) — a mocked ioredis client
+// only proves this code calls a mock the way the test expects, not that a
+// real SET/GET against real Redis round-trips the way we assume.
+import { Redis } from "ioredis";
+import { randomUUID } from "node:crypto";
 import { RedisMatchTicketStoreAdapter } from "./redis-match-ticket-store.adapter.js";
-import { serializeMatchTicket } from "./match-ticket.mapper.js";
 import { MATCH_TICKET_TTL_MS } from "../../../../domain/match/match-ticket-policy.js";
 import type { Job } from "../../../../domain/jobs/job.entity.js";
 
-function buildRedis(overrides: { set?: jest.Mock; get?: jest.Mock }): Redis {
-  return {
-    set: overrides.set ?? jest.fn().mockResolvedValue("OK"),
-    get: overrides.get ?? jest.fn().mockResolvedValue(null),
-  } as unknown as Redis;
-}
+const TEST_REDIS_URL = process.env.TEST_REDIS_URL ?? "redis://localhost:6379";
 
 function buildJob(overrides: Partial<Job> = {}): Job {
   return {
@@ -29,100 +28,84 @@ function buildJob(overrides: Partial<Job> = {}): Job {
   };
 }
 
-describe("RedisMatchTicketStoreAdapter", () => {
-  it("writes a pending ticket with a short TTL", async () => {
-    const set = jest.fn().mockResolvedValue("OK");
-    const redis = buildRedis({ set });
-    const adapter = new RedisMatchTicketStoreAdapter(redis);
+describe("RedisMatchTicketStoreAdapter (integration)", () => {
+  const redis = new Redis(TEST_REDIS_URL);
+  const adapter = new RedisMatchTicketStoreAdapter(redis);
+  const keysToClean: string[] = [];
+
+  afterEach(async () => {
+    if (keysToClean.length > 0) {
+      await redis.del(...keysToClean);
+      keysToClean.length = 0;
+    }
+  });
+
+  afterAll(async () => {
+    await redis.quit();
+  });
+
+  function newTicketId(): string {
+    const id = randomUUID();
+    keysToClean.push(`match-ticket:${id}`);
+    return id;
+  }
+
+  it("writes a pending ticket that can be read back, with a short TTL set", async () => {
+    const id = newTicketId();
     const createdAt = new Date("2026-07-24T10:00:00.000Z");
 
-    await adapter.createPending("ticket-1", createdAt);
+    await adapter.createPending(id, createdAt);
 
-    expect(set).toHaveBeenCalledWith(
-      "match-ticket:ticket-1",
-      JSON.stringify({
-        id: "ticket-1",
-        createdAt: createdAt.toISOString(),
-        status: "pending",
-      }),
-      "PX",
-      MATCH_TICKET_TTL_MS,
-    );
+    await expect(adapter.get(id)).resolves.toEqual({
+      id,
+      status: "pending",
+      createdAt,
+    });
+    const ttl = await redis.pttl(`match-ticket:${id}`);
+    expect(ttl).toBeGreaterThan(0);
+    expect(ttl).toBeLessThanOrEqual(MATCH_TICKET_TTL_MS);
   });
 
   it("returns null for a ticket that doesn't exist (expired or never created)", async () => {
-    const redis = buildRedis({ get: jest.fn().mockResolvedValue(null) });
-    const adapter = new RedisMatchTicketStoreAdapter(redis);
-
-    await expect(adapter.get("missing")).resolves.toBeNull();
-  });
-
-  it("returns the deserialized ticket when it exists", async () => {
-    const ticket = {
-      id: "ticket-1",
-      status: "pending" as const,
-      createdAt: new Date("2026-07-24T10:00:00.000Z"),
-    };
-    const redis = buildRedis({
-      get: jest.fn().mockResolvedValue(serializeMatchTicket(ticket)),
-    });
-    const adapter = new RedisMatchTicketStoreAdapter(redis);
-
-    await expect(adapter.get("ticket-1")).resolves.toEqual(ticket);
+    await expect(adapter.get(randomUUID())).resolves.toBeNull();
   });
 
   it("marks a ticket completed with jobs, preserving its original createdAt", async () => {
+    const id = newTicketId();
     const createdAt = new Date("2026-07-24T10:00:00.000Z");
-    const existing = { id: "ticket-1", status: "pending" as const, createdAt };
-    const set = jest.fn().mockResolvedValue("OK");
-    const redis = buildRedis({
-      get: jest.fn().mockResolvedValue(serializeMatchTicket(existing)),
-      set,
-    });
-    const adapter = new RedisMatchTicketStoreAdapter(redis);
+    await adapter.createPending(id, createdAt);
     const jobs = [buildJob()];
 
-    await adapter.markCompleted("ticket-1", jobs);
+    await adapter.markCompleted(id, jobs);
 
-    expect(set).toHaveBeenCalledWith(
-      "match-ticket:ticket-1",
-      expect.stringContaining('"status":"completed"'),
-      "PX",
-      MATCH_TICKET_TTL_MS,
-    );
-    const [, payload] = set.mock.calls[0] as [string, string];
-    expect(JSON.parse(payload)).toMatchObject({
-      id: "ticket-1",
-      createdAt: createdAt.toISOString(),
+    await expect(adapter.get(id)).resolves.toEqual({
+      id,
       status: "completed",
+      createdAt,
+      jobs,
     });
   });
 
   it("does not write when completing a ticket that has already expired", async () => {
-    const set = jest.fn();
-    const redis = buildRedis({ get: jest.fn().mockResolvedValue(null), set });
-    const adapter = new RedisMatchTicketStoreAdapter(redis);
+    const setSpy = jest.spyOn(redis, "set");
 
-    await adapter.markCompleted("expired", [buildJob()]);
+    await adapter.markCompleted(randomUUID(), [buildJob()]);
 
-    expect(set).not.toHaveBeenCalled();
+    expect(setSpy).not.toHaveBeenCalled();
+    setSpy.mockRestore();
   });
 
-  it("marks a ticket failed with an error message", async () => {
+  it("marks a ticket failed with an error message, preserving its original createdAt", async () => {
+    const id = newTicketId();
     const createdAt = new Date("2026-07-24T10:00:00.000Z");
-    const existing = { id: "ticket-1", status: "pending" as const, createdAt };
-    const set = jest.fn().mockResolvedValue("OK");
-    const redis = buildRedis({
-      get: jest.fn().mockResolvedValue(serializeMatchTicket(existing)),
-      set,
-    });
-    const adapter = new RedisMatchTicketStoreAdapter(redis);
+    await adapter.createPending(id, createdAt);
 
-    await adapter.markFailed("ticket-1", "LLM provider unavailable");
+    await adapter.markFailed(id, "LLM provider unavailable");
 
-    const [, payload] = set.mock.calls[0] as [string, string];
-    expect(JSON.parse(payload)).toMatchObject({
+    await expect(adapter.get(id)).resolves.toEqual({
+      id,
       status: "failed",
+      createdAt,
       error: "LLM provider unavailable",
     });
   });
