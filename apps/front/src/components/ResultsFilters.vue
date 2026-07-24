@@ -15,13 +15,9 @@
     </div>
 
     <div class="filter-group" data-tab="source">
-      <label>
-        <input type="checkbox" :checked="sources.includes('France Travail')" @change="$emit('toggle-source', 'France Travail')" />
-        France Travail
-      </label>
-      <label>
-        <input type="checkbox" :checked="sources.includes('WTTJ')" @change="$emit('toggle-source', 'WTTJ')" />
-        Welcome to the Jungle
+      <label v-for="value in sourceOptions" :key="value">
+        <input type="checkbox" :checked="sources.includes(value)" @change="$emit('toggle-source', value)" />
+        {{ sourceLabel(value) }}
       </label>
     </div>
 
@@ -50,7 +46,7 @@
           :aria-pressed="remotePolicies.includes(value)"
           @click="$emit('toggle-remote', value)"
         >
-          {{ value === 'Full' ? 'Full remote' : value }}
+          {{ remotePolicyLabel(value) }}
         </button>
       </div>
     </div>
@@ -59,6 +55,7 @@
 
 <script setup lang="ts">
 import type { ContractType, JobSource, RemotePolicy } from '../types/job.js';
+import { remotePolicyLabel, sourceLabel } from '../types/job.js';
 
 defineProps<{
   minScore: number;
@@ -73,8 +70,9 @@ defineEmits<{
   (e: 'toggle-remote', value: RemotePolicy): void;
 }>();
 
-const contractOptions: ContractType[] = ['CDI', 'CDD', 'Freelance'];
-const remoteOptions: RemotePolicy[] = ['Full', 'Hybrid', 'On-site'];
+const sourceOptions: JobSource[] = ['france-travail', 'wttj-rss'];
+const contractOptions: ContractType[] = ['CDI', 'CDD', 'Freelance', 'Internship', 'Apprenticeship', 'Other'];
+const remoteOptions: RemotePolicy[] = ['Full', 'Hybrid', 'OnSite'];
 </script>
 
 <style scoped>

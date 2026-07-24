@@ -1,6 +1,5 @@
-export function msUntilMidnight(now: Date): number {
-  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
-  return midnight.getTime() - now.getTime();
+export function msUntil(target: Date, now: Date): number {
+  return Math.max(0, target.getTime() - now.getTime());
 }
 
 export function formatCountdown(ms: number): string {

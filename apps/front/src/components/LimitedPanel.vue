@@ -4,17 +4,17 @@
       <div class="limit-stamp">TODAY'S QUOTA USED</div>
       <p>You've used both checks for today. A fresh pair unlocks at midnight.</p>
       <div class="countdown">{{ label }}</div>
-      <p class="fine">Rate limits protect the shared job pool and scoring budget for every visitor, not just you — see §3.2.2 of the PRD.</p>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { useMidnightCountdown } from '../composables/useMidnightCountdown.js';
+import { useCountdown } from '../composables/useCountdown.js';
 
-const { label, start } = useMidnightCountdown();
-onMounted(start);
+const props = defineProps<{ resetAt: Date }>();
+const { label, start } = useCountdown();
+onMounted(() => start(props.resetAt));
 </script>
 
 <style scoped>
