@@ -1,5 +1,6 @@
 import { inject, injectable } from "inversify";
 import type { ScoringProviderPort } from "../../ports/output/scoring-provider.port.js";
+import type { EmbeddingProviderPort } from "../../ports/output/embedding-provider.port.js";
 import type { LoggerPort } from "../../ports/output/logger.port.js";
 import type { CvContext } from "../../../domain/cv/cv-context.entity.js";
 import type { Job } from "../../../domain/jobs/job.entity.js";
@@ -22,6 +23,7 @@ export interface ScoreMatchCandidatesInput {
 export interface ScoreMatchCandidatesOptions {
   readonly candidateLimit: number;
   readonly decayDays: number;
+  readonly roleSimilarityThreshold: number;
 }
 
 export interface ScoreMatchCandidatesPort {
@@ -40,6 +42,8 @@ export class ScoreMatchCandidatesUseCase implements ScoreMatchCandidatesPort {
   constructor(
     @inject(PORT_TYPES.ScoringProvider)
     private readonly scoringProvider: ScoringProviderPort,
+    @inject(PORT_TYPES.EmbeddingProvider)
+    private readonly embeddingProvider: EmbeddingProviderPort,
     @inject(PORT_TYPES.Logger)
     private readonly logger: LoggerPort,
     @inject(PORT_TYPES.ScoreMatchCandidatesOptions)
@@ -47,7 +51,12 @@ export class ScoreMatchCandidatesUseCase implements ScoreMatchCandidatesPort {
   ) {}
 
   async execute(input: ScoreMatchCandidatesInput): Promise<readonly ScoredJob[]> {
-    const relevant = filterRelevantJobs(input.cvContext, input.jobs);
+    const relevant = await filterRelevantJobs(
+      input.cvContext,
+      input.jobs,
+      this.embeddingProvider,
+      this.options.roleSimilarityThreshold,
+    );
     const candidates = selectRecentCandidates(relevant, this.options.candidateLimit);
 
     const entries = await mapWithConcurrency(

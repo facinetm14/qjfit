@@ -19,6 +19,7 @@ export const PORT_TYPES = {
   CreateMatchRequestUseCase: Symbol.for("CreateMatchRequestUseCase"),
   GetMatchTicketUseCase: Symbol.for("GetMatchTicketUseCase"),
   ScoringProvider: Symbol.for("ScoringProvider"),
+  EmbeddingProvider: Symbol.for("EmbeddingProvider"),
   ScoreMatchCandidatesUseCase: Symbol.for("ScoreMatchCandidatesUseCase"),
   ScoreMatchCandidatesOptions: Symbol.for("ScoreMatchCandidatesOptions"),
 } as const;

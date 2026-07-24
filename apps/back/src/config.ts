@@ -39,6 +39,12 @@ const envSchema = z.object({
   SCORING_CANDIDATE_LIMIT: z.coerce.number().int().min(1).default(50),
   // PRD §3.4 final ranking: ranking_score = score * exp(-days_since_posted / decay_days).
   SCORING_DECAY_DAYS: z.coerce.number().int().min(1).default(14),
+  // Role gate (issue #14): minimum cosine similarity between the CV's stated
+  // target role and a job's title for the job to clear the family-match
+  // tier. See StubEmbeddingProviderAdapter's doc comment for how the stub
+  // vector space behaves; 0.25 cleanly separates related titles
+  // (>= 0.4 in that space) from unrelated ones (<= 0.16).
+  ROLE_SIMILARITY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.25),
 });
 
 export type AppConfig = Readonly<z.infer<typeof envSchema>>;
