@@ -13,6 +13,7 @@
     "build:front": "yarn workspace @qjfit/front build",
     "dev:back": "yarn workspace @qjfit/back dev",
     "dev:front": "yarn workspace @qjfit/front dev",
+    "run-jobs": "yarn workspace @qjfit/back run-jobs",
     "test": "yarn test:back && yarn test:front",
     "test:back": "yarn workspace @qjfit/back test",
     "test:front": "yarn workspace @qjfit/front test",

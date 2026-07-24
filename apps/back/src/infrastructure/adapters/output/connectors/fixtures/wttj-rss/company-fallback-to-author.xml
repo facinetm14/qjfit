@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>WTTJ Jobs</title>
+    <item>
+      <guid>WTTJ-300</guid>
+      <title>Platform Engineer</title>
+      <description>Own the platform.</description>
+      <link>https://wttj.example/jobs/wttj-300</link>
+      <pubDate>Mon, 05 May 2026 10:00:00 GMT</pubDate>
+      <author>Nimbus Recruiting</author>
+      <location>Remote</location>
+    </item>
+  </channel>
+</rss>

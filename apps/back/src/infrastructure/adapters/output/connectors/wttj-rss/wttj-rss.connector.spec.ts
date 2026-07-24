@@ -87,6 +87,27 @@ describe("WttjRssConnector", () => {
     });
   });
 
+  it("falls back to the author when company is missing", async () => {
+    const xml = loadFixture("company-fallback-to-author.xml");
+    const fetcher = async () => ({
+      ok: true,
+      status: 200,
+      text: async () => xml,
+    });
+    const connector = new WttjRssConnector({
+      feedUrl: "https://example.com/feed",
+      fetcher,
+    });
+
+    const result = await connector.fetch("run-1");
+
+    expect(result.jobs).toHaveLength(1);
+    expect(result.jobs[0]).toMatchObject({
+      sourceJobId: "WTTJ-300",
+      company: "Nimbus Recruiting",
+    });
+  });
+
   it("throws on invalid XML", async () => {
     const xml = loadFixture("invalid-xml.xml");
     const fetcher = async () => ({

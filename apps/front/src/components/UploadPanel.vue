@@ -61,7 +61,11 @@
           </button>
         </div>
 
-        <button class="btn btn-primary" :disabled="!file" @click="$emit('run')">
+        <button
+          class="btn btn-primary"
+          :disabled="!file"
+          @click="$emit(ClientEvents.CV_SUBMITTED)"
+        >
           Run the check →
         </button>
       </div>
