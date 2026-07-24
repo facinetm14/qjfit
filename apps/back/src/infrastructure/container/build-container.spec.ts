@@ -42,8 +42,10 @@ describe("buildContainer", () => {
     expect(
       container.get(TYPES.ExecuteFetchRunLifecycleUseCase),
     ).toBeInstanceOf(ExecuteFetchRunLifecycleUseCase);
+    // WTTJ is commented out in bind-connectors.ts until there's a feed to
+    // test against — bump this back to 2 once it's re-enabled.
     expect(container.getAll<FetchSourcePort>(TYPES.FetchSource)).toHaveLength(
-      2,
+      1,
     );
   });
 
