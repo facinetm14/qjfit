@@ -42,6 +42,13 @@ const MAX_NAVIGABLE_LAST_INDEX = 1149;
 const REQUESTS_PER_SECOND_LIMIT = 10;
 const MIN_REQUEST_INTERVAL_MS = 1000 / REQUESTS_PER_SECOND_LIMIT;
 
+// Transient connection failures (e.g. ECONNRESET) surface as a rejected
+// fetch rather than a response; a page request is retried a few times
+// before giving up on the whole source, matching the same rationale as
+// FranceTravailAuthClient's retry.
+const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_RETRY_DELAY_MS = 500;
+
 async function defaultSleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -93,6 +100,8 @@ export interface FranceTravailConnectorOptions {
   readonly pageSize: number;
   readonly fetcher?: Fetcher;
   readonly sleep?: (ms: number) => Promise<void>;
+  readonly maxRetries?: number;
+  readonly retryDelayMs?: number;
 }
 
 @injectable()
@@ -126,11 +135,12 @@ export class FranceTravailConnector implements FetchSourcePort {
       const rangeEnd = Math.min(offset + pageSize - 1, MAX_NAVIGABLE_LAST_INDEX);
       const requestedCount = rangeEnd - offset + 1;
       const url = `${this.options.baseUrl}/offres/search?range=${offset}-${rangeEnd}`;
-      const response = await fetcher(url, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      const response = await this.fetchWithRetry(
+        fetcher,
+        url,
+        { Authorization: `Bearer ${accessToken}` },
+        sleep,
+      );
 
       if (!response.ok) {
         throw new Error(
@@ -160,6 +170,29 @@ export class FranceTravailConnector implements FetchSourcePort {
     }
 
     return { jobs };
+  }
+
+  private async fetchWithRetry(
+    fetcher: Fetcher,
+    url: string,
+    headers: Record<string, string>,
+    sleep: (ms: number) => Promise<void>,
+  ): Promise<FetchResponse> {
+    const maxRetries = this.options.maxRetries ?? DEFAULT_MAX_RETRIES;
+    const retryDelayMs = this.options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
+
+    let attempt = 0;
+    for (;;) {
+      try {
+        return await fetcher(url, { headers });
+      } catch (error) {
+        attempt += 1;
+        if (attempt > maxRetries) {
+          throw error;
+        }
+        await sleep(retryDelayMs);
+      }
+    }
   }
 
   private toRawJob(
