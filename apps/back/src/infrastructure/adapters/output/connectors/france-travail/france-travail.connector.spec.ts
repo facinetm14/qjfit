@@ -194,6 +194,60 @@ describe("FranceTravailConnector", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  describe("transient failure retries", () => {
+    it("retries a page request after a transient network error and succeeds", async () => {
+      const payload = loadFixture("success-minimal.json");
+      const sleeps: number[] = [];
+      let callCount = 0;
+      const fetcher = async () => {
+        callCount += 1;
+        if (callCount < 3) {
+          throw new TypeError("fetch failed: ECONNRESET");
+        }
+        return response(payload);
+      };
+      const connector = new FranceTravailConnector(
+        {
+          baseUrl: "https://api.test",
+          pageSize: 150,
+          fetcher,
+          sleep: async (ms: number) => {
+            sleeps.push(ms);
+          },
+        },
+        buildAuthClient(),
+      );
+
+      const result = await connector.fetch("run-1");
+
+      expect(callCount).toBe(3);
+      expect(sleeps).toHaveLength(2);
+      expect(result.jobs).toHaveLength(1);
+    });
+
+    it("gives up after 3 retries and throws the last network error", async () => {
+      let callCount = 0;
+      const fetcher = async () => {
+        callCount += 1;
+        throw new TypeError("fetch failed: ECONNRESET");
+      };
+      const connector = new FranceTravailConnector(
+        {
+          baseUrl: "https://api.test",
+          pageSize: 150,
+          fetcher,
+          sleep: noopSleep,
+        },
+        buildAuthClient(),
+      );
+
+      await expect(connector.fetch("run-1")).rejects.toThrow(
+        "fetch failed: ECONNRESET",
+      );
+      expect(callCount).toBe(4);
+    });
+  });
+
   describe("pagination", () => {
     it("stops after a single page when fewer results than the page size come back", async () => {
       const calls: string[] = [];
