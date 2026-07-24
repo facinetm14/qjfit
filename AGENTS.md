@@ -124,6 +124,7 @@ REDIS_URL=redis://redis:6379
 - Commit messages follow Conventional Commits: `feat:`, `fix:`, `chore:`, `test:`, `docs:`
 - One logical change per commit
 - Never commit to `main` directly — use feature branches and PRs (even when working solo, for CI to trigger)
+- **Always create a new branch before starting work on an issue** — never implement directly on `master`/`main` or reuse a branch left over from a previous, unrelated issue.
 - `.env` is always in `.gitignore` — verified before every push
 - Never add `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>` in your commit message.
 
