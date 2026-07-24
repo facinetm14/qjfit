@@ -18,4 +18,7 @@ export const PORT_TYPES = {
   MatchTicketStore: Symbol.for("MatchTicketStore"),
   CreateMatchRequestUseCase: Symbol.for("CreateMatchRequestUseCase"),
   GetMatchTicketUseCase: Symbol.for("GetMatchTicketUseCase"),
+  ScoringProvider: Symbol.for("ScoringProvider"),
+  ScoreMatchCandidatesUseCase: Symbol.for("ScoreMatchCandidatesUseCase"),
+  ScoreMatchCandidatesOptions: Symbol.for("ScoreMatchCandidatesOptions"),
 } as const;
