@@ -16,4 +16,7 @@ export const TYPES = {
   FranceTravailAuthClient: Symbol.for("FranceTravailAuthClient"),
   WttjRssConnectorOptions: Symbol.for("WttjRssConnectorOptions"),
   FetchRunScheduler: Symbol.for("FetchRunScheduler"),
+  PdfCvTextExtractor: Symbol.for("PdfCvTextExtractor"),
+  PdfCvTextExtractorOptions: Symbol.for("PdfCvTextExtractorOptions"),
+  DocxCvTextExtractor: Symbol.for("DocxCvTextExtractor"),
 } as const;
