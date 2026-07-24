@@ -24,11 +24,13 @@ function buildInput(
 function buildPrisma(overrides: {
   findFirst?: jest.Mock;
   create?: jest.Mock;
+  findMany?: jest.Mock;
 }): PrismaClient {
   return {
     job: {
       findFirst: overrides.findFirst ?? jest.fn().mockResolvedValue(null),
       create: overrides.create ?? jest.fn(),
+      findMany: overrides.findMany ?? jest.fn().mockResolvedValue([]),
     },
   } as unknown as PrismaClient;
 }
@@ -110,5 +112,15 @@ describe("PrismaJobsRepository", () => {
     await expect(repo.createIfNotExists(buildInput())).rejects.toThrow(
       dbFailure,
     );
+  });
+
+  it("returns every job in the pool via findMany", async () => {
+    const record = { id: "job-1", ...buildInput() };
+    const findMany = jest.fn().mockResolvedValue([record]);
+    const repo = new PrismaJobsRepository(buildPrisma({ findMany }));
+
+    const jobs = await repo.findMany();
+
+    expect(jobs).toEqual([expect.objectContaining({ id: "job-1" })]);
   });
 });
