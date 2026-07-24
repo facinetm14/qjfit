@@ -13,4 +13,9 @@ export const PORT_TYPES = {
   ExecuteFetchRunLifecycleUseCase: Symbol.for(
     "ExecuteFetchRunLifecycleUseCase",
   ),
+  CvTextExtractor: Symbol.for("CvTextExtractor"),
+  RateLimiter: Symbol.for("RateLimiter"),
+  MatchTicketStore: Symbol.for("MatchTicketStore"),
+  CreateMatchRequestUseCase: Symbol.for("CreateMatchRequestUseCase"),
+  GetMatchTicketUseCase: Symbol.for("GetMatchTicketUseCase"),
 } as const;
