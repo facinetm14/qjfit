@@ -2,5 +2,5 @@ import type { Job } from "../../../domain/jobs/job.entity.js";
 import type { ScoreResult } from "../../../domain/scoring/score.entity.js";
 
 export interface ScoringProviderPort {
-  score(job: Job): Promise<ScoreResult>;
+  score(cvMarkdown: string, job: Job): Promise<ScoreResult>;
 }
