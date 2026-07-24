@@ -1,0 +1,12 @@
+{
+  // ts-jest downgrades moduleResolution to classic Node10 whenever "module"
+  // stays NodeNext, and Node10 ignores package.json "exports" entirely —
+  // fatal for exports-only packages like inversify (no legacy main/types
+  // fields). ESNext + Bundler here keeps ts-jest on its supported path
+  // without touching the real build's NodeNext config in tsconfig.json.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler"
+  }
+}
