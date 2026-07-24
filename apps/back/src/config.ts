@@ -3,6 +3,7 @@ import cron from "node-cron";
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
+  REDIS_URL: z.string().min(1),
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),

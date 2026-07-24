@@ -9,6 +9,7 @@ export const TYPES = {
   ...PORT_TYPES,
   Config: Symbol.for("Config"),
   PrismaClient: Symbol.for("PrismaClient"),
+  RedisClient: Symbol.for("RedisClient"),
   FranceTravailConnectorOptions: Symbol.for("FranceTravailConnectorOptions"),
   FranceTravailAuthClientOptions: Symbol.for(
     "FranceTravailAuthClientOptions",

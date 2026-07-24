@@ -30,6 +30,7 @@ function buildLogger() {
 function buildValidEnv(): NodeJS.ProcessEnv {
   return {
     DATABASE_URL: "postgresql://QJFit:password@db:5432/QJFit",
+    REDIS_URL: "redis://localhost:6379",
     NODE_ENV: "test",
     PORT: "3000",
     CORS_ORIGIN: "http://localhost:5173",
