@@ -3,4 +3,5 @@ import type { NormalizedJobInput } from "../../../domain/jobs/normalized-job.ent
 
 export interface JobsRepositoryPort {
   createIfNotExists(input: NormalizedJobInput): Promise<Job | null>;
+  findMany(): Promise<readonly Job[]>;
 }
