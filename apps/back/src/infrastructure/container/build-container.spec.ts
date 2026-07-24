@@ -26,6 +26,7 @@ function buildConfig(): AppConfig {
     WTTJ_RSS_FEED_URL: "https://wttj.example/rss",
     SCORING_CANDIDATE_LIMIT: 50,
     SCORING_DECAY_DAYS: 14,
+    ROLE_SIMILARITY_THRESHOLD: 0.25,
   };
 }
 
