@@ -15,4 +15,5 @@ export const PORT_TYPES = {
   ),
   CvTextExtractor: Symbol.for("CvTextExtractor"),
   RateLimiter: Symbol.for("RateLimiter"),
+  MatchTicketStore: Symbol.for("MatchTicketStore"),
 } as const;
