@@ -143,7 +143,8 @@ are implemented as `RedisRateLimiterAdapter` (2/IP/day, TTL to midnight UTC) and
 `RedisMatchTicketStoreAdapter` (10-minute TTL); `docker-compose.yml`/`docker-compose.prod.yml`
 now both have a `redis` service.
 
-Still out of scope (tracked as follow-up work, not this ADR): the ticket's background pipeline
-currently completes with the raw, unfiltered candidate pool (`JobsRepositoryPort.findMany()`)
-and no scores — PRD §3.4's relevance pre-filter, recency tiebreak, and LLM scoring are a
-drop-in replacement for that placeholder step, not yet built.
+Update: the ticket's background pipeline now runs the full PRD §3.4 pipeline for
+real (relevance pre-filter, recency tiebreak, bounded-concurrency scoring
+orchestration, final ranking) — only the LLM call itself is stubbed. See ADR
+0017 for that decision; the completed ticket shape is `{ results: ScoredJob[] }`,
+not the raw job list this ADR originally described.

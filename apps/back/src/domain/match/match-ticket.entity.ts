@@ -1,4 +1,4 @@
-import type { Job } from "../jobs/job.entity.js";
+import type { ScoredJob } from "../scoring/scored-job.entity.js";
 
 export interface PendingMatchTicket {
   readonly id: string;
@@ -10,7 +10,7 @@ export interface CompletedMatchTicket {
   readonly id: string;
   readonly status: "completed";
   readonly createdAt: Date;
-  readonly jobs: readonly Job[];
+  readonly results: readonly ScoredJob[];
 }
 
 export interface FailedMatchTicket {

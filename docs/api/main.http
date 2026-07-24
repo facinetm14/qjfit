@@ -21,5 +21,14 @@ Content-Type: application/pdf
 ### Match - Poll a match ticket
 # Does not count against the rate limit. 404 once the ticket's short TTL
 # (minutes) has expired or it never existed.
+#
+# { status: "pending" }
+# { status: "completed", results: [{ job: {...}, score, summary, matchReasons,
+#     missingSkills, seniorityFit, redFlags, rankingScore }, ...] }
+# { status: "failed", error }
+#
+# `score`/`summary`/`matchReasons`/`missingSkills` are placeholder values from
+# StubScoringProviderAdapter until the real LLM scoring step lands (issue #5,
+# ADR 0017) — see that ADR before treating them as genuine match reasoning.
 @ticketId = replace-with-a-real-ticket-id
 GET {{baseUrl}}/api/match/{{ticketId}}

@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import { RedisMatchTicketStoreAdapter } from "./redis-match-ticket-store.adapter.js";
 import { MATCH_TICKET_TTL_MS } from "../../../../domain/match/match-ticket-policy.js";
 import type { Job } from "../../../../domain/jobs/job.entity.js";
+import type { ScoredJob } from "../../../../domain/scoring/scored-job.entity.js";
 
 const TEST_REDIS_URL = process.env.TEST_REDIS_URL ?? "redis://localhost:6379";
 
@@ -24,6 +25,20 @@ function buildJob(overrides: Partial<Job> = {}): Job {
     sourceJobId: "FT-1",
     dedupKey: "dedup-1",
     fetchedAt: new Date("2026-07-20T00:00:00.000Z"),
+    ...overrides,
+  };
+}
+
+function buildScoredJob(overrides: Partial<ScoredJob> = {}): ScoredJob {
+  return {
+    job: buildJob(),
+    score: 82,
+    summary: "Strong match",
+    matchReasons: ["TypeScript"],
+    missingSkills: ["Kubernetes"],
+    seniorityFit: "good",
+    redFlags: [],
+    rankingScore: 75.4,
     ...overrides,
   };
 }
@@ -70,26 +85,26 @@ describe("RedisMatchTicketStoreAdapter (integration)", () => {
     await expect(adapter.get(randomUUID())).resolves.toBeNull();
   });
 
-  it("marks a ticket completed with jobs, preserving its original createdAt", async () => {
+  it("marks a ticket completed with scored results, preserving its original createdAt", async () => {
     const id = newTicketId();
     const createdAt = new Date("2026-07-24T10:00:00.000Z");
     await adapter.createPending(id, createdAt);
-    const jobs = [buildJob()];
+    const results = [buildScoredJob()];
 
-    await adapter.markCompleted(id, jobs);
+    await adapter.markCompleted(id, results);
 
     await expect(adapter.get(id)).resolves.toEqual({
       id,
       status: "completed",
       createdAt,
-      jobs,
+      results,
     });
   });
 
   it("does not write when completing a ticket that has already expired", async () => {
     const setSpy = jest.spyOn(redis, "set");
 
-    await adapter.markCompleted(randomUUID(), [buildJob()]);
+    await adapter.markCompleted(randomUUID(), [buildScoredJob()]);
 
     expect(setSpy).not.toHaveBeenCalled();
     setSpy.mockRestore();

@@ -135,4 +135,32 @@ describe('loadConfig', () => {
 
     expect(config.WTTJ_RSS_FEED_URL).toBe('');
   });
+
+  it('defaults SCORING_CANDIDATE_LIMIT to 50 and SCORING_DECAY_DAYS to 14 when unset', () => {
+    const config = loadConfig({
+      DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      REDIS_URL: 'redis://localhost:6379',
+      NODE_ENV: 'development',
+      PORT: '3000',
+      CORS_ORIGIN: 'http://localhost:5173'
+    });
+
+    expect(config.SCORING_CANDIDATE_LIMIT).toBe(50);
+    expect(config.SCORING_DECAY_DAYS).toBe(14);
+  });
+
+  it('accepts custom SCORING_CANDIDATE_LIMIT and SCORING_DECAY_DAYS values', () => {
+    const config = loadConfig({
+      DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      REDIS_URL: 'redis://localhost:6379',
+      NODE_ENV: 'development',
+      PORT: '3000',
+      CORS_ORIGIN: 'http://localhost:5173',
+      SCORING_CANDIDATE_LIMIT: '25',
+      SCORING_DECAY_DAYS: '7'
+    });
+
+    expect(config.SCORING_CANDIDATE_LIMIT).toBe(25);
+    expect(config.SCORING_DECAY_DAYS).toBe(7);
+  });
 });
