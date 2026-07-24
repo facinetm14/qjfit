@@ -1,4 +1,5 @@
 import type { ContractType } from "../shared/contract-type.js";
+import { FRENCH_REGIONS } from "../shared/french-region.js";
 import type { CvContext, CvSeniorityRange } from "./cv-context.entity.js";
 
 // Deterministic, keyword/regex-based heuristics — a cheap best-effort
@@ -75,6 +76,10 @@ const ROLE_PATTERNS: ReadonlyArray<{
   { label: "QA Engineer", pattern: /\bqa\s+engineer\b/i },
 ];
 
+// City keywords take priority over region keywords below (findFirstKeyword
+// returns the first array match) — a CV stating a specific city is more
+// precise than a region-wide preference, and city-level gating is already a
+// subset of region-level resolution (same department -> same region).
 const LOCATION_KEYWORDS = [
   "Paris",
   "Lyon",
@@ -89,6 +94,7 @@ const LOCATION_KEYWORDS = [
   "Montpellier",
   "Remote",
   "Télétravail",
+  ...FRENCH_REGIONS,
 ] as const;
 
 const CONTRACT_TYPE_PATTERNS: ReadonlyArray<{
@@ -121,24 +127,30 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// Plain `\b` relies on `\w`, which is ASCII-only — it fails to find a
+// boundary before/after an accented letter (e.g. the "Î" in
+// "Île-de-France"), silently rejecting a true match. `\p{L}`/`\p{N}` with
+// the `u` flag are Unicode-aware, so this matches consistently regardless
+// of whether the keyword starts with an ASCII or accented character.
+function keywordRegex(keyword: string): RegExp {
+  return new RegExp(
+    `(?<![\\p{L}\\p{N}])${escapeRegExp(keyword)}(?![\\p{L}\\p{N}])`,
+    "iu",
+  );
+}
+
 function findKeywordMatches(
   text: string,
   keywords: readonly string[],
 ): string[] {
-  return keywords.filter((keyword) =>
-    new RegExp(`\\b${escapeRegExp(keyword)}\\b`, "i").test(text),
-  );
+  return keywords.filter((keyword) => keywordRegex(keyword).test(text));
 }
 
 function findFirstKeyword(
   text: string,
   keywords: readonly string[],
 ): string | null {
-  return (
-    keywords.find((keyword) =>
-      new RegExp(`\\b${escapeRegExp(keyword)}\\b`, "i").test(text),
-    ) ?? null
-  );
+  return keywords.find((keyword) => keywordRegex(keyword).test(text)) ?? null;
 }
 
 function findRole(text: string): (typeof ROLE_KEYWORDS)[number] | null {

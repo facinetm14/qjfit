@@ -1,5 +1,6 @@
 import type { CvContext } from "../cv/cv-context.entity.js";
 import type { Job } from "../jobs/job.entity.js";
+import { extractDepartmentCode, resolveRegion } from "../shared/french-region.js";
 
 // Weights only rank jobs that already cleared the hard gates below — they
 // never decide whether a job is relevant at all, only how relevant.
@@ -73,11 +74,27 @@ function passesRoleGate(cvContext: CvContext, job: Job): boolean {
   return hasStrongRoleMatch(cvContext, job) || hasRoleFamilyMatch(job);
 }
 
+// Region-aware containment: a literal substring match still covers today's
+// city-level case (a job's "XX - City" location already contains the city
+// name), and additionally resolves the job's department code to its region
+// so a CV stating regional mobility (e.g. "Île-de-France") matches any job
+// in that region, not just one whose location string repeats it verbatim
+// (which France Travail's connector format never does). If the CV's stated
+// location doesn't resolve against either table, this degrades to the
+// plain substring check — the same behavior as before this resolution
+// existed — rather than rejecting the job outright.
 function hasLocationOverlap(cvContext: CvContext, job: Job): boolean {
   if (!cvContext.location) {
     return false;
   }
-  return job.location.toLowerCase().includes(cvContext.location.toLowerCase());
+  const cvLocation = cvContext.location.toLowerCase();
+  if (job.location.toLowerCase().includes(cvLocation)) {
+    return true;
+  }
+
+  const departmentCode = extractDepartmentCode(job.location);
+  const jobRegion = departmentCode ? resolveRegion(departmentCode) : null;
+  return jobRegion !== null && jobRegion.toLowerCase() === cvLocation;
 }
 
 function statesPhysicalLocation(cvContext: CvContext): boolean {
