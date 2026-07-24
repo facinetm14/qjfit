@@ -29,10 +29,6 @@ function hasContractTypeOverlap(cvContext: CvContext, job: Job): boolean {
   return cvContext.contractTypes.includes(job.contractType);
 }
 
-/**
- * Cheap keyword/attribute overlap between the parsed CV and a job (PRD
- * §3.4 step 1) — no LLM call. Bounds cost/latency before any scoring.
- */
 export function computeRelevanceScore(cvContext: CvContext, job: Job): number {
   let score = countTechStackOverlap(cvContext, job);
   if (hasRoleOverlap(cvContext, job)) score += 1;
@@ -41,9 +37,20 @@ export function computeRelevanceScore(cvContext: CvContext, job: Job): number {
   return score;
 }
 
+export interface RelevantJob {
+  readonly job: Job;
+  readonly relevanceScore: number;
+}
+
+// Carries each job's relevanceScore forward instead of collapsing it to a
+// pass/fail — the recency tiebreak (step 2) needs it to rank a job matching
+// on several signals above one matching on a single generic one (e.g. just
+// "Paris"), which a flat >0 filter can't distinguish between.
 export function filterRelevantJobs(
   cvContext: CvContext,
   jobs: readonly Job[],
-): readonly Job[] {
-  return jobs.filter((job) => computeRelevanceScore(cvContext, job) > 0);
+): readonly RelevantJob[] {
+  return jobs
+    .map((job) => ({ job, relevanceScore: computeRelevanceScore(cvContext, job) }))
+    .filter((entry) => entry.relevanceScore > 0);
 }
