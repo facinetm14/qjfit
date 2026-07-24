@@ -43,5 +43,5 @@ export function bindConnectors(container: Container, config: AppConfig): void {
     .to(FranceTravailConnector)
     .inSingletonScope();
 
-  // container.bind(TYPES.FetchSource).to(WttjRssConnector).inSingletonScope();
+  container.bind(TYPES.FetchSource).to(WttjRssConnector).inSingletonScope();
 }
