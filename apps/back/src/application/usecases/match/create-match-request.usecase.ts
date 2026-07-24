@@ -23,6 +23,7 @@ export interface CreateMatchRequestInput {
 
 export interface CreateMatchRequestOutput {
   readonly ticketId: string;
+  readonly remaining: number;
 }
 
 function toErrorMessage(error: unknown): string {
@@ -74,7 +75,7 @@ export class CreateMatchRequestUseCase {
       });
     });
 
-    return { ticketId };
+    return { ticketId, remaining: decision.remaining };
   }
 
   private async runMatchPipeline(
