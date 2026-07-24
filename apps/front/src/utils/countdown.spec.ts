@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { formatCountdown, msUntilMidnight } from './countdown.js';
+import { formatCountdown, msUntil } from './countdown.js';
 
-describe('msUntilMidnight', () => {
-  it('returns the exact remaining milliseconds until local midnight', () => {
-    const now = new Date(2026, 6, 22, 23, 30, 0, 0);
-    expect(msUntilMidnight(now)).toBe(30 * 60 * 1000);
+describe('msUntil', () => {
+  it('returns the exact remaining milliseconds until the target', () => {
+    const now = new Date('2026-07-22T23:30:00.000Z');
+    const target = new Date('2026-07-23T00:00:00.000Z');
+    expect(msUntil(target, now)).toBe(30 * 60 * 1000);
   });
 
-  it('returns a full day when called exactly at midnight', () => {
-    const now = new Date(2026, 6, 22, 0, 0, 0, 0);
-    expect(msUntilMidnight(now)).toBe(24 * 60 * 60 * 1000);
+  it('returns zero once the target has already passed', () => {
+    const now = new Date('2026-07-23T00:05:00.000Z');
+    const target = new Date('2026-07-23T00:00:00.000Z');
+    expect(msUntil(target, now)).toBe(0);
   });
 });
 

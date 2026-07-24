@@ -14,9 +14,12 @@ export function filterAndSortJobs(jobs: readonly MatchedJob[], filters: JobFilte
   const filtered = jobs.filter(
     (job) =>
       job.score >= filters.minScore &&
-      filters.sources.includes(job.source) &&
+      filters.sources.includes(job.source as JobSource) &&
       filters.contracts.includes(job.contract) &&
-      filters.remotePolicies.includes(job.remote)
+      // "Unknown" has no filter chip of its own (PRD §3.5 only lists
+      // onsite/hybrid/full-remote) — never hide a job just because its
+      // remote policy couldn't be determined.
+      (filters.remotePolicies.includes(job.remote) || job.remote === 'Unknown')
   );
 
   return filtered.sort((a, b) => (filters.sortOrder === 'date' ? a.daysAgo - b.daysAgo : b.score - a.score));
