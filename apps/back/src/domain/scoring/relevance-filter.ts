@@ -10,38 +10,32 @@ const ROLE_FAMILY_MATCH_WEIGHT = 2;
 const LOCATION_MATCH_WEIGHT = 2;
 const CONTRACT_TYPE_MATCH_WEIGHT = 1;
 
-// Broad, deterministic role-family indicators (English + French) covering
-// every role extract-cv-context.ts can produce as a targetRole. A literal
-// targetRole match (hasStrongRoleMatch) is the strong signal; these looser
-// indicators exist only so the role gate below doesn't reject every French
-// job title outright just because it isn't phrased in the CV's exact
-// wording. Catching genuine synonyms/wording beyond this list is the real
-// LLM scoring step's job (PRD §3.4 step 3), not this deterministic filter.
-// Deliberately excludes bare "engineer"/"ingénieur" — in French job titles
-// that word spans every engineering discipline (pharmacology, mechanical,
-// civil, ...), not just software, and including it let a title like
-// "Ingénieur d'Étude en Pharmacologie" pass the gate. "développeur" doesn't
-// have that problem — it's near-exclusively used for software roles in the
-// French job market — so it stays as a bare indicator.
-const ROLE_FAMILY_TITLE_INDICATORS = [
-  "developer", "développeur", "developpeur", "développeuse", "developpeuse",
-  "programmer", "programmeur",
-  "devops", "dev ops", "dev-ops",
-  "data scientist", "data engineer", "data analyst",
-  "software", "logiciel",
-  "full stack", "fullstack", "full-stack",
-  "backend", "back-end", "back end",
-  "frontend", "front-end", "front end",
-  "qa engineer", "testeur", "quality assurance", "assurance qualité",
-  "product manager", "product owner", "chef de produit",
-  "mobile developer", "développeur mobile", "developpeur mobile",
-] as const;
-
 // A CV's location can be a real place ("Paris") or a remote-work preference
 // ("Remote"/"Télétravail") — the latter can never literally appear in a
 // job's `location` field (a physical address), so gating on it would reject
 // the entire pool.
 const REMOTE_LOCATION_VALUES = new Set(["remote", "télétravail", "teletravail"]);
+
+/**
+ * What the role gate needs from an embedding provider — a narrow,
+ * domain-owned shape rather than an import of
+ * application/ports/output/embedding-provider.port.ts, so this file stays
+ * free of dependencies on outer layers (see AGENTS.md rule 13). The real
+ * `EmbeddingProviderPort` satisfies this structurally; the application layer
+ * is what wires a concrete adapter through at the call site.
+ */
+export interface RoleSimilarityProvider {
+  embed(text: string): Promise<readonly number[]>;
+}
+
+function cosineSimilarity(a: readonly number[], b: readonly number[]): number {
+  let dot = 0;
+  const length = Math.min(a.length, b.length);
+  for (let i = 0; i < length; i += 1) {
+    dot += (a[i] ?? 0) * (b[i] ?? 0);
+  }
+  return dot;
+}
 
 function countTechStackOverlap(cvContext: CvContext, job: Job): number {
   const description = job.description.toLowerCase();
@@ -57,21 +51,34 @@ function hasStrongRoleMatch(cvContext: CvContext, job: Job): boolean {
   return job.title.toLowerCase().includes(cvContext.targetRole.toLowerCase());
 }
 
-function hasRoleFamilyMatch(job: Job): boolean {
-  const title = job.title.toLowerCase();
-  return ROLE_FAMILY_TITLE_INDICATORS.some((indicator) => title.includes(indicator));
-}
+type RoleMatchTier = "strong" | "family" | "none";
 
-// Hard gate: when the CV states a target role, a job whose title doesn't
-// indicate the same broad role family is not relevant, full stop — no
-// amount of overlap on other attributes (a shared city, a single incidental
-// tech keyword) should surface e.g. "Hospitality Officer" or "Conseiller
-// Patrimonial" for a Fullstack Developer CV.
-function passesRoleGate(cvContext: CvContext, job: Job): boolean {
-  if (!cvContext.targetRole) {
-    return true;
+// Strong match is a fast, literal check — no embedding call needed. Family
+// match falls back to embedding similarity between the CV's stated target
+// role and the job title (PRD §3.4, issue #14), replacing the previous
+// hand-maintained ROLE_FAMILY_TITLE_INDICATORS keyword list, whose brittle
+// English/French synonym coverage required a code change for every new
+// wording variant.
+async function classifyRoleMatch(
+  cvContext: CvContext,
+  job: Job,
+  embeddingProvider: RoleSimilarityProvider,
+  similarityThreshold: number,
+): Promise<RoleMatchTier> {
+  if (hasStrongRoleMatch(cvContext, job)) {
+    return "strong";
   }
-  return hasStrongRoleMatch(cvContext, job) || hasRoleFamilyMatch(job);
+  if (!cvContext.targetRole) {
+    return "none";
+  }
+
+  const [targetRoleEmbedding, titleEmbedding] = await Promise.all([
+    embeddingProvider.embed(cvContext.targetRole),
+    embeddingProvider.embed(job.title),
+  ]);
+  const similarity = cosineSimilarity(targetRoleEmbedding, titleEmbedding);
+
+  return similarity >= similarityThreshold ? "family" : "none";
 }
 
 // Region-aware containment: a literal substring match still covers today's
@@ -120,7 +127,10 @@ function hasContractTypeOverlap(cvContext: CvContext, job: Job): boolean {
 
 /**
  * Cheap keyword/attribute overlap between the parsed CV and a job (PRD
- * §3.4 step 1) — no LLM call. Bounds cost/latency before any scoring.
+ * §3.4 step 1) — no LLM call (the role gate's embedding lookup is the one
+ * exception, and only fires when the CV states a target role that doesn't
+ * literally appear in the job title). Bounds cost/latency before any
+ * scoring.
  *
  * Role and (physical) location are hard gates: a stated preference that
  * doesn't match zeroes the score outright, regardless of any other
@@ -130,8 +140,19 @@ function hasContractTypeOverlap(cvContext: CvContext, job: Job): boolean {
  * for any CV that states one. It stays a bonus-only signal until that's
  * fixed, and until then never actually fires.
  */
-export function computeRelevanceScore(cvContext: CvContext, job: Job): number {
-  if (!passesRoleGate(cvContext, job)) {
+export async function computeRelevanceScore(
+  cvContext: CvContext,
+  job: Job,
+  embeddingProvider: RoleSimilarityProvider,
+  roleSimilarityThreshold: number,
+): Promise<number> {
+  const roleMatchTier = await classifyRoleMatch(
+    cvContext,
+    job,
+    embeddingProvider,
+    roleSimilarityThreshold,
+  );
+  if (cvContext.targetRole && roleMatchTier === "none") {
     return 0;
   }
   if (!passesLocationGate(cvContext, job)) {
@@ -140,9 +161,9 @@ export function computeRelevanceScore(cvContext: CvContext, job: Job): number {
 
   let score = countTechStackOverlap(cvContext, job) * TECH_STACK_WEIGHT;
 
-  if (hasStrongRoleMatch(cvContext, job)) {
+  if (roleMatchTier === "strong") {
     score += STRONG_ROLE_MATCH_WEIGHT;
-  } else if (cvContext.targetRole && hasRoleFamilyMatch(job)) {
+  } else if (roleMatchTier === "family") {
     score += ROLE_FAMILY_MATCH_WEIGHT;
   }
 
@@ -166,11 +187,22 @@ export interface RelevantJob {
 // pass/fail — the recency tiebreak (step 2) needs it to rank a job matching
 // on several signals above one matching on a single generic one (e.g. just
 // "Paris"), which a flat >0 filter can't distinguish between.
-export function filterRelevantJobs(
+export async function filterRelevantJobs(
   cvContext: CvContext,
   jobs: readonly Job[],
-): readonly RelevantJob[] {
-  return jobs
-    .map((job) => ({ job, relevanceScore: computeRelevanceScore(cvContext, job) }))
-    .filter((entry) => entry.relevanceScore > 0);
+  embeddingProvider: RoleSimilarityProvider,
+  roleSimilarityThreshold: number,
+): Promise<readonly RelevantJob[]> {
+  const entries = await Promise.all(
+    jobs.map(async (job) => ({
+      job,
+      relevanceScore: await computeRelevanceScore(
+        cvContext,
+        job,
+        embeddingProvider,
+        roleSimilarityThreshold,
+      ),
+    })),
+  );
+  return entries.filter((entry) => entry.relevanceScore > 0);
 }

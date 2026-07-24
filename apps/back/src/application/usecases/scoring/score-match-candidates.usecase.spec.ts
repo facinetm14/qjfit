@@ -1,5 +1,6 @@
 import { ScoreMatchCandidatesUseCase } from "./score-match-candidates.usecase.js";
 import type { ScoringProviderPort } from "../../ports/output/scoring-provider.port.js";
+import type { EmbeddingProviderPort } from "../../ports/output/embedding-provider.port.js";
 import type { LoggerPort } from "../../ports/output/logger.port.js";
 import type { CvContext } from "../../../domain/cv/cv-context.entity.js";
 import type { Job } from "../../../domain/jobs/job.entity.js";
@@ -62,6 +63,13 @@ class FakeLogger implements LoggerPort {
   }
 }
 
+// None of these tests state a CV targetRole, so the role gate never fires
+// and this fake's embed() is never actually called — it exists only to
+// satisfy the constructor's dependency.
+const embeddingProvider: EmbeddingProviderPort = {
+  embed: async () => [],
+};
+
 describe("ScoreMatchCandidatesUseCase", () => {
   const now = new Date("2026-07-24T00:00:00.000Z");
 
@@ -77,8 +85,9 @@ describe("ScoreMatchCandidatesUseCase", () => {
     };
     const useCase = new ScoreMatchCandidatesUseCase(
       scoringProvider,
+      embeddingProvider,
       new FakeLogger(),
-      { candidateLimit: 50, decayDays: 14 },
+      { candidateLimit: 50, decayDays: 14, roleSimilarityThreshold: 0.25 },
     );
 
     await useCase.execute({
@@ -105,8 +114,9 @@ describe("ScoreMatchCandidatesUseCase", () => {
     };
     const useCase = new ScoreMatchCandidatesUseCase(
       scoringProvider,
+      embeddingProvider,
       new FakeLogger(),
-      { candidateLimit: 2, decayDays: 14 },
+      { candidateLimit: 2, decayDays: 14, roleSimilarityThreshold: 0.25 },
     );
 
     await useCase.execute({ cvContext: buildCvContext(), jobs, now });
@@ -129,8 +139,9 @@ describe("ScoreMatchCandidatesUseCase", () => {
     };
     const useCase = new ScoreMatchCandidatesUseCase(
       scoringProvider,
+      embeddingProvider,
       new FakeLogger(),
-      { candidateLimit: 50, decayDays: 14 },
+      { candidateLimit: 50, decayDays: 14, roleSimilarityThreshold: 0.25 },
     );
 
     await useCase.execute({ cvContext: buildCvContext(), jobs, now });
@@ -153,8 +164,9 @@ describe("ScoreMatchCandidatesUseCase", () => {
     const logger = new FakeLogger();
     const useCase = new ScoreMatchCandidatesUseCase(
       scoringProvider,
+      embeddingProvider,
       logger,
-      { candidateLimit: 50, decayDays: 14 },
+      { candidateLimit: 50, decayDays: 14, roleSimilarityThreshold: 0.25 },
     );
 
     const results = await useCase.execute({
@@ -183,8 +195,9 @@ describe("ScoreMatchCandidatesUseCase", () => {
     };
     const useCase = new ScoreMatchCandidatesUseCase(
       scoringProvider,
+      embeddingProvider,
       new FakeLogger(),
-      { candidateLimit: 50, decayDays: 14 },
+      { candidateLimit: 50, decayDays: 14, roleSimilarityThreshold: 0.25 },
     );
 
     const results = await useCase.execute({
