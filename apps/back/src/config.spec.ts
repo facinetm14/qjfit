@@ -163,4 +163,41 @@ describe('loadConfig', () => {
     expect(config.SCORING_CANDIDATE_LIMIT).toBe(25);
     expect(config.SCORING_DECAY_DAYS).toBe(7);
   });
+
+  it('defaults ROLE_SIMILARITY_THRESHOLD to 0.25 when unset', () => {
+    const config = loadConfig({
+      DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      REDIS_URL: 'redis://localhost:6379',
+      NODE_ENV: 'development',
+      PORT: '3000',
+      CORS_ORIGIN: 'http://localhost:5173'
+    });
+
+    expect(config.ROLE_SIMILARITY_THRESHOLD).toBe(0.25);
+  });
+
+  it('accepts a custom ROLE_SIMILARITY_THRESHOLD', () => {
+    const config = loadConfig({
+      DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      REDIS_URL: 'redis://localhost:6379',
+      NODE_ENV: 'development',
+      PORT: '3000',
+      CORS_ORIGIN: 'http://localhost:5173',
+      ROLE_SIMILARITY_THRESHOLD: '0.4'
+    });
+
+    expect(config.ROLE_SIMILARITY_THRESHOLD).toBe(0.4);
+  });
+
+  it('rejects a ROLE_SIMILARITY_THRESHOLD outside [0, 1]', () => {
+    expect(() => {
+      loadConfig({
+        DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+        NODE_ENV: 'development',
+        PORT: '3000',
+        CORS_ORIGIN: 'http://localhost:5173',
+        ROLE_SIMILARITY_THRESHOLD: '1.5'
+      });
+    }).toThrow('Invalid environment configuration');
+  });
 });
