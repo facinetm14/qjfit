@@ -10,6 +10,7 @@ import type { JobsRepositoryPort } from "../../ports/output/jobs-repository.port
 import type { LoggerPort } from "../../ports/output/logger.port.js";
 import { validateCvUpload } from "../../../domain/cv/validate-cv-upload.js";
 import { extractCvContext } from "../../../domain/cv/extract-cv-context.js";
+import { buildAnonymizedMarkdownCv } from "../../../domain/cv/convert-cv-to-markdown.js";
 import type { CvContext } from "../../../domain/cv/cv-context.entity.js";
 import { MatchRateLimitExceededError } from "../../../domain/rate-limiting/errors/match-rate-limit-exceeded.error.js";
 import type { ScoreMatchCandidatesPort } from "../scoring/score-match-candidates.usecase.js";
@@ -65,12 +66,13 @@ export class CreateMatchRequestUseCase {
 
     const text = await this.cvTextExtractor.extract(input.cvFile);
     const cvContext = extractCvContext(text);
+    const cvMarkdown = buildAnonymizedMarkdownCv(text);
 
     const ticketId = randomUUID();
     await this.matchTicketStore.createPending(ticketId, input.now);
 
     queueMicrotask(() => {
-      this.runMatchPipeline(ticketId, cvContext, input.now).catch((error) => {
+      this.runMatchPipeline(ticketId, cvContext, cvMarkdown, input.now).catch((error) => {
         this.logger.error({ ticketId, err: error }, "Match pipeline failed");
       });
     });
@@ -81,12 +83,14 @@ export class CreateMatchRequestUseCase {
   private async runMatchPipeline(
     ticketId: string,
     cvContext: CvContext,
+    cvMarkdown: string,
     now: Date,
   ): Promise<void> {
     try {
       const jobs = await this.jobsRepository.findMany();
       const results = await this.scoreMatchCandidatesUseCase.execute({
         cvContext,
+        cvMarkdown,
         jobs,
         now,
       });

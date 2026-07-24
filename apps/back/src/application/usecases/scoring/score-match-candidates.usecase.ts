@@ -16,6 +16,7 @@ const MAX_CONCURRENT_SCORING_CALLS = 5;
 
 export interface ScoreMatchCandidatesInput {
   readonly cvContext: CvContext;
+  readonly cvMarkdown: string;
   readonly jobs: readonly Job[];
   readonly now: Date;
 }
@@ -62,7 +63,7 @@ export class ScoreMatchCandidatesUseCase implements ScoreMatchCandidatesPort {
     const entries = await mapWithConcurrency(
       candidates,
       MAX_CONCURRENT_SCORING_CALLS,
-      (job) => this.scoringProvider.score(job),
+      (job) => this.scoringProvider.score(input.cvMarkdown, job),
     );
 
     const scoredJobs: ScoredJob[] = [];
