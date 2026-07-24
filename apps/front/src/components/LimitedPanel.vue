@@ -11,10 +11,11 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { useMidnightCountdown } from '../composables/useMidnightCountdown.js';
+import { useCountdown } from '../composables/useCountdown.js';
 
-const { label, start } = useMidnightCountdown();
-onMounted(start);
+const props = defineProps<{ resetAt: Date }>();
+const { label, start } = useCountdown();
+onMounted(() => start(props.resetAt));
 </script>
 
 <style scoped>

@@ -61,9 +61,11 @@
           </button>
         </div>
 
+        <p v-if="fileError" class="file-error" role="alert">{{ fileError }}</p>
+
         <button
           class="btn btn-primary"
-          :disabled="!file"
+          :disabled="!file || !!fileError"
           @click="$emit(ClientEvents.CV_SUBMITTED)"
         >
           Run the check →
@@ -107,7 +109,7 @@
         v-for="entry in poolStats.bySource"
         :key="entry.source"
       >
-        <span>{{ entry.source }}</span
+        <span>{{ sourceLabel(entry.source) }}</span
         ><span>{{ entry.count }}</span>
       </div>
     </aside>
@@ -117,9 +119,9 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { PoolStats } from "../types/job.js";
-import { ClientEvents } from "../types/job.js";
+import { ClientEvents, sourceLabel } from "../types/job.js";
 
-const props = defineProps<{ file: File | null; poolStats: PoolStats }>();
+const props = defineProps<{ file: File | null; fileError: string | null; poolStats: PoolStats }>();
 const emit = defineEmits<{
   (e: typeof ClientEvents.CV_UPLOADED, file: File | null): void;
   (e: typeof ClientEvents.CV_SUBMITTED): void;
@@ -240,6 +242,12 @@ function clearFile() {
 }
 .file-chip .remove-file:hover {
   color: var(--score-low);
+}
+
+.file-error {
+  color: var(--score-low);
+  font-size: 0.85rem;
+  margin: var(--space-3) 0 0;
 }
 
 .notice {
