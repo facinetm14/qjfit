@@ -14,6 +14,8 @@ import type { JobsRepositoryPort } from "./application/ports/output/jobs-reposit
 import type { LoggerPort } from "./application/ports/output/logger.port.js";
 import type { Job } from "./domain/jobs/job.entity.js";
 import type { MatchTicket } from "./domain/match/match-ticket.entity.js";
+import type { ScoredJob } from "./domain/scoring/scored-job.entity.js";
+import type { ScoreMatchCandidatesInput, ScoreMatchCandidatesPort } from "./application/usecases/scoring/score-match-candidates.usecase.js";
 import { MAX_MATCH_REQUESTS_PER_DAY } from "./domain/rate-limiting/rate-limit-policy.js";
 
 const canBindLocalPort = process.env.ALLOW_LOCAL_BIND === "1";
@@ -48,14 +50,14 @@ class FakeMatchTicketStore implements MatchTicketStorePort {
     this.tickets.set(id, { id, status: "pending", createdAt });
   }
 
-  async markCompleted(id: string, jobs: readonly Job[]): Promise<void> {
+  async markCompleted(id: string, results: readonly ScoredJob[]): Promise<void> {
     const existing = this.tickets.get(id);
     if (!existing) return;
     this.tickets.set(id, {
       id,
       status: "completed",
       createdAt: existing.createdAt,
-      jobs,
+      results,
     });
   }
 
@@ -84,6 +86,21 @@ class FakeJobsRepository implements JobsRepositoryPort {
 
   async findMany(): Promise<readonly Job[]> {
     return this.jobs;
+  }
+}
+
+class FakeScoreMatchCandidates implements ScoreMatchCandidatesPort {
+  async execute(input: ScoreMatchCandidatesInput): Promise<readonly ScoredJob[]> {
+    return input.jobs.map((job) => ({
+      job,
+      score: 80,
+      summary: "Good match",
+      matchReasons: [],
+      missingSkills: [],
+      seniorityFit: "good",
+      redFlags: [],
+      rankingScore: 80,
+    }));
   }
 }
 
@@ -128,6 +145,7 @@ function buildDeps(overrides: {
       new FakeCvTextExtractor(),
       matchTicketStore,
       jobsRepository,
+      new FakeScoreMatchCandidates(),
       new FakeLogger(),
     ),
     getMatchTicketUseCase: new GetMatchTicketUseCase(matchTicketStore),
@@ -166,7 +184,7 @@ describe("createApp", () => {
   });
 
   describe("POST /api/match + GET /api/match/:id", () => {
-    maybeIt("uploads a CV, returns 202, and the ticket eventually completes with pool jobs", async () => {
+    maybeIt("uploads a CV, returns 202, and the ticket eventually completes with scored results", async () => {
       const logger = pino({ enabled: false });
       const jobs = [buildJob()];
       const app = createApp(logger, buildDeps({ jobs }));
@@ -189,8 +207,9 @@ describe("createApp", () => {
 
       expect(getResponse.status).toBe(200);
       expect(getResponse.body.status).toBe("completed");
-      expect(getResponse.body.jobs).toHaveLength(1);
-      expect(getResponse.body.jobs[0]).toMatchObject({ id: jobs[0]?.id });
+      expect(getResponse.body.results).toHaveLength(1);
+      expect(getResponse.body.results[0].job).toMatchObject({ id: jobs[0]?.id });
+      expect(getResponse.body.results[0]).toMatchObject({ score: 80 });
     });
 
     maybeIt("returns 404 when polling an unknown ticket id", async () => {

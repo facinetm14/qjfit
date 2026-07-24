@@ -1,6 +1,7 @@
 import { deserializeMatchTicket, serializeMatchTicket } from "./match-ticket.mapper.js";
 import type { MatchTicket } from "../../../../domain/match/match-ticket.entity.js";
 import type { Job } from "../../../../domain/jobs/job.entity.js";
+import type { ScoredJob } from "../../../../domain/scoring/scored-job.entity.js";
 
 function buildJob(overrides: Partial<Job> = {}): Job {
   return {
@@ -20,6 +21,20 @@ function buildJob(overrides: Partial<Job> = {}): Job {
   };
 }
 
+function buildScoredJob(overrides: Partial<ScoredJob> = {}): ScoredJob {
+  return {
+    job: buildJob(),
+    score: 82,
+    summary: "Strong match",
+    matchReasons: ["TypeScript"],
+    missingSkills: ["Kubernetes"],
+    seniorityFit: "good",
+    redFlags: [],
+    rankingScore: 75.4,
+    ...overrides,
+  };
+}
+
 describe("match-ticket JSON mapping", () => {
   it("round-trips a pending ticket", () => {
     const ticket: MatchTicket = {
@@ -33,19 +48,20 @@ describe("match-ticket JSON mapping", () => {
     expect(deserialized).toEqual(ticket);
   });
 
-  it("round-trips a completed ticket, reviving job dates", () => {
+  it("round-trips a completed ticket, reviving job dates within each result", () => {
     const ticket: MatchTicket = {
       id: "ticket-1",
       status: "completed",
       createdAt: new Date("2026-07-24T10:00:00.000Z"),
-      jobs: [buildJob()],
+      results: [buildScoredJob()],
     };
 
     const deserialized = deserializeMatchTicket(serializeMatchTicket(ticket));
 
     expect(deserialized).toEqual(ticket);
     expect(
-      deserialized?.status === "completed" && deserialized.jobs[0]?.fetchedAt,
+      deserialized?.status === "completed" &&
+        deserialized.results[0]?.job.fetchedAt,
     ).toBeInstanceOf(Date);
   });
 
