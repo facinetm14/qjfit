@@ -1,6 +1,11 @@
 # syntax=docker/dockerfile:1
-FROM node:20.15.0-alpine AS base
+FROM node:20.18.1-alpine AS base
 WORKDIR /app
+# Without openssl installed, Prisma can't detect the Alpine image's actual
+# libssl version at `prisma generate` time and silently falls back to an
+# openssl-1.1 engine binary, which then fails to load at runtime against
+# this image's openssl 3.
+RUN apk add --no-cache openssl
 RUN corepack enable
 
 # ---------------------------------------------------------------------------
@@ -58,9 +63,10 @@ RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
 # ---------------------------------------------------------------------------
 # prod: lean runtime image. Used by docker-compose.prod.yml (target: prod).
 # ---------------------------------------------------------------------------
-FROM node:20.15.0-alpine AS prod
+FROM node:20.18.1-alpine AS prod
 WORKDIR /app
 ENV NODE_ENV=production
+RUN apk add --no-cache openssl
 RUN addgroup -S qjfit && adduser -S qjfit -G qjfit
 COPY package.json ./
 COPY --from=prod-deps /app/node_modules ./node_modules
