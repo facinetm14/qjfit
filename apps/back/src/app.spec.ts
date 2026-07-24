@@ -90,7 +90,10 @@ class FakeJobsRepository implements JobsRepositoryPort {
 }
 
 class FakeScoreMatchCandidates implements ScoreMatchCandidatesPort {
+  calls: ScoreMatchCandidatesInput[] = [];
+
   async execute(input: ScoreMatchCandidatesInput): Promise<readonly ScoredJob[]> {
+    this.calls.push(input);
     return input.jobs.map((job) => ({
       job,
       score: 80,
@@ -134,6 +137,7 @@ function buildDeps(overrides: {
   rateLimiter?: RateLimiterPort;
   jobs?: readonly Job[];
   matchTicketStore?: MatchTicketStorePort;
+  scoreMatchCandidates?: FakeScoreMatchCandidates;
 } = {}): AppDependencies {
   const rateLimiter = overrides.rateLimiter ?? new FakeRateLimiter();
   const matchTicketStore = overrides.matchTicketStore ?? new FakeMatchTicketStore();
@@ -145,7 +149,7 @@ function buildDeps(overrides: {
       new FakeCvTextExtractor(),
       matchTicketStore,
       jobsRepository,
-      new FakeScoreMatchCandidates(),
+      overrides.scoreMatchCandidates ?? new FakeScoreMatchCandidates(),
       new FakeLogger(),
     ),
     getMatchTicketUseCase: new GetMatchTicketUseCase(matchTicketStore),
@@ -187,7 +191,8 @@ describe("createApp", () => {
     maybeIt("uploads a CV, returns 202, and the ticket eventually completes with scored results", async () => {
       const logger = pino({ enabled: false });
       const jobs = [buildJob()];
-      const app = createApp(logger, buildDeps({ jobs }));
+      const scoreMatchCandidates = new FakeScoreMatchCandidates();
+      const app = createApp(logger, buildDeps({ jobs, scoreMatchCandidates }));
 
       const postResponse = await request(app)
         .post("/api/match")
@@ -211,6 +216,13 @@ describe("createApp", () => {
       expect(getResponse.body.results).toHaveLength(1);
       expect(getResponse.body.results[0].job).toMatchObject({ id: jobs[0]?.id });
       expect(getResponse.body.results[0]).toMatchObject({ score: 80 });
+
+      // The scoring pipeline is invoked with the anonymized markdown CV
+      // derived from the extracted text, not just the raw job pool (#15).
+      expect(scoreMatchCandidates.calls).toHaveLength(1);
+      expect(scoreMatchCandidates.calls[0]?.cvMarkdown).toBe(
+        "Backend Developer, Paris, CDI, 5 years of experience",
+      );
     });
 
     maybeIt("returns 404 when polling an unknown ticket id", async () => {
