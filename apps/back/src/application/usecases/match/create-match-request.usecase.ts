@@ -59,9 +59,9 @@ export class CreateMatchRequestUseCase {
     });
 
     const decision = await this.rateLimiter.consume(input.ip, input.now);
-    // if (!decision.allowed) {
-    //   throw new MatchRateLimitExceededError(decision.resetAt);
-    // }
+    if (!decision.allowed) {
+      throw new MatchRateLimitExceededError(decision.resetAt);
+    }
 
     const text = await this.cvTextExtractor.extract(input.cvFile);
     const cvContext = extractCvContext(text);
