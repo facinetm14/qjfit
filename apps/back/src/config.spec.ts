@@ -7,9 +7,21 @@ describe('loadConfig', () => {
     }).toThrow('Invalid environment configuration');
   });
 
+  it('throws when REDIS_URL is missing', () => {
+    expect(() => {
+      loadConfig({
+        DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+        NODE_ENV: 'development',
+        PORT: '3000',
+        CORS_ORIGIN: 'http://localhost:5173'
+      });
+    }).toThrow('Invalid environment configuration');
+  });
+
   it('parses valid environment variables', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      REDIS_URL: 'redis://localhost:6379',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173'
@@ -21,6 +33,7 @@ describe('loadConfig', () => {
   it('defaults FETCH_RUN_CRON_SCHEDULE to every 4 hours when unset', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      REDIS_URL: 'redis://localhost:6379',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173'
@@ -32,6 +45,7 @@ describe('loadConfig', () => {
   it('accepts a custom FETCH_RUN_CRON_SCHEDULE cron expression', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      REDIS_URL: 'redis://localhost:6379',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173',
@@ -56,6 +70,7 @@ describe('loadConfig', () => {
   it('defaults France Travail URLs/scope to their real platform values, and credentials to empty strings, when unset', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      REDIS_URL: 'redis://localhost:6379',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173'
@@ -75,6 +90,7 @@ describe('loadConfig', () => {
   it('defaults FRANCE_TRAVAIL_PAGE_SIZE to 150 when unset', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      REDIS_URL: 'redis://localhost:6379',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173'
@@ -86,6 +102,7 @@ describe('loadConfig', () => {
   it('accepts a custom FRANCE_TRAVAIL_PAGE_SIZE', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      REDIS_URL: 'redis://localhost:6379',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173',
@@ -110,6 +127,7 @@ describe('loadConfig', () => {
   it('defaults WTTJ_RSS_FEED_URL to an empty string when unset', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      REDIS_URL: 'redis://localhost:6379',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173'

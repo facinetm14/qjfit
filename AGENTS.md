@@ -89,7 +89,7 @@ WTTJ_RSS_FEED_URL=
 REDIS_URL=redis://redis:6379
 ```
 
-`apps/back/src/config.ts` (Zod-validated) is the current source of truth for which variables the backend actually requires at boot — today that's `DATABASE_URL`, `NODE_ENV`, `PORT`, `CORS_ORIGIN`, `FETCH_RUN_CRON_SCHEDULE`, `FRANCE_TRAVAIL_BASE_URL`, `FRANCE_TRAVAIL_AUTH_URL`, `FRANCE_TRAVAIL_SCOPE`, `FRANCE_TRAVAIL_CLIENT_ID`, `FRANCE_TRAVAIL_CLIENT_SECRET`, `FRANCE_TRAVAIL_PAGE_SIZE`, `WTTJ_RSS_FEED_URL`. When a required variable is missing or invalid at startup, the application must log a clear error message naming the variable and exit with code 1.
+`apps/back/src/config.ts` (Zod-validated) is the current source of truth for which variables the backend actually requires at boot — today that's `DATABASE_URL`, `REDIS_URL`, `NODE_ENV`, `PORT`, `CORS_ORIGIN`, `FETCH_RUN_CRON_SCHEDULE`, `FRANCE_TRAVAIL_BASE_URL`, `FRANCE_TRAVAIL_AUTH_URL`, `FRANCE_TRAVAIL_SCOPE`, `FRANCE_TRAVAIL_CLIENT_ID`, `FRANCE_TRAVAIL_CLIENT_SECRET`, `FRANCE_TRAVAIL_PAGE_SIZE`, `WTTJ_RSS_FEED_URL`. When a required variable is missing or invalid at startup, the application must log a clear error message naming the variable and exit with code 1.
 
 ## Coding conventions
 
