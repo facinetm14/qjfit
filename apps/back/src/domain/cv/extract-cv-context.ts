@@ -50,6 +50,31 @@ const ROLE_KEYWORDS = [
   "QA Engineer",
 ] as const;
 
+// A literal `\bFull Stack Developer\b` match misses common real-world
+// spellings ("Fullstack Developer", "Full-Stack Developer") and the French
+// "développeur"/"ingénieur" wording of the same compound roles. These
+// patterns tolerate that spacing/hyphenation and EN/FR wording without
+// attempting full synonym coverage — matching genuine title synonyms beyond
+// this is the real LLM scoring step's job (PRD §3.4 step 3), not this
+// deterministic heuristic.
+const ROLE_PATTERNS: ReadonlyArray<{
+  readonly label: (typeof ROLE_KEYWORDS)[number];
+  readonly pattern: RegExp;
+}> = [
+  { label: "Full Stack Developer", pattern: /\bfull[\s-]?stack\s+(?:develop(?:er|eur|euse)|engineer|ingénieur)\b/i },
+  { label: "Backend Developer", pattern: /\bback[\s-]?end\s+develop(?:er|eur|euse)\b/i },
+  { label: "Frontend Developer", pattern: /\bfront[\s-]?end\s+develop(?:er|eur|euse)\b/i },
+  { label: "Backend Engineer", pattern: /\bback[\s-]?end\s+(?:engineer|ingénieur)\b/i },
+  { label: "Frontend Engineer", pattern: /\bfront[\s-]?end\s+(?:engineer|ingénieur)\b/i },
+  { label: "Software Engineer", pattern: /\b(?:software\s+engineer|ingénieur\s+logiciel)\b/i },
+  { label: "Data Scientist", pattern: /\bdata\s+scientist\b/i },
+  { label: "Data Engineer", pattern: /\bdata\s+engineer\b/i },
+  { label: "DevOps Engineer", pattern: /\bdev[\s-]?ops(?:\s+engineer)?\b/i },
+  { label: "Product Manager", pattern: /\b(?:product\s+manager|product\s+owner|chef\s+de\s+produit)\b/i },
+  { label: "Mobile Developer", pattern: /\bmobile\s+develop(?:er|eur|euse)\b/i },
+  { label: "QA Engineer", pattern: /\bqa\s+engineer\b/i },
+];
+
 const LOCATION_KEYWORDS = [
   "Paris",
   "Lyon",
@@ -116,6 +141,10 @@ function findFirstKeyword(
   );
 }
 
+function findRole(text: string): (typeof ROLE_KEYWORDS)[number] | null {
+  return ROLE_PATTERNS.find(({ pattern }) => pattern.test(text))?.label ?? null;
+}
+
 function extractSeniority(text: string): CvSeniorityRange | null {
   const range = SENIORITY_RANGE_PATTERN.exec(text);
   if (range) {
@@ -159,7 +188,7 @@ function extractExcludedKeywords(text: string): string[] {
 
 export function extractCvContext(text: string): CvContext {
   return {
-    targetRole: findFirstKeyword(text, ROLE_KEYWORDS),
+    targetRole: findRole(text),
     techStack: findKeywordMatches(text, TECH_STACK_KEYWORDS),
     seniority: extractSeniority(text),
     location: findFirstKeyword(text, LOCATION_KEYWORDS),

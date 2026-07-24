@@ -8,6 +8,7 @@
       <UploadPanel
         v-if="flow.panel.value === 'upload'"
         :file="flow.selectedFile.value"
+        :file-error="flow.fileError.value"
         :pool-stats="flow.poolStats"
         @cv-uploaded="flow.selectFile"
         @cv-submitted="flow.runCheck"
@@ -18,7 +19,12 @@
         :jobs="flow.results.value"
         :pool-total="flow.poolStats.total"
       />
-      <LimitedPanel v-else-if="flow.panel.value === 'limited'" />
+      <LimitedPanel v-else-if="flow.panel.value === 'limited'" :reset-at="flow.resetAt.value ?? new Date()" />
+      <ErrorPanel
+        v-else-if="flow.panel.value === 'error'"
+        :message="flow.errorMessage.value ?? 'Something went wrong. Please try again.'"
+        @retry="flow.reset"
+      />
     </div>
   </main>
 
@@ -32,6 +38,7 @@ import UploadPanel from "./components/UploadPanel.vue";
 import ScanningPanel from "./components/ScanningPanel.vue";
 import ResultsPanel from "./components/ResultsPanel.vue";
 import LimitedPanel from "./components/LimitedPanel.vue";
+import ErrorPanel from "./components/ErrorPanel.vue";
 import { useMatchFlow } from "./composables/useMatchFlow.js";
 
 const flow = useMatchFlow();
