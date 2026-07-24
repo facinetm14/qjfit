@@ -24,6 +24,10 @@ export interface ScoreMatchCandidatesOptions {
   readonly decayDays: number;
 }
 
+export interface ScoreMatchCandidatesPort {
+  execute(input: ScoreMatchCandidatesInput): Promise<readonly ScoredJob[]>;
+}
+
 function toErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -32,7 +36,7 @@ function toErrorMessage(error: unknown): string {
 }
 
 @injectable()
-export class ScoreMatchCandidatesUseCase {
+export class ScoreMatchCandidatesUseCase implements ScoreMatchCandidatesPort {
   constructor(
     @inject(PORT_TYPES.ScoringProvider)
     private readonly scoringProvider: ScoringProviderPort,

@@ -1,7 +1,7 @@
 import { inject, injectable } from "inversify";
 import type { Redis } from "ioredis";
 import type { MatchTicketStorePort } from "../../../../application/ports/output/match-ticket-store.port.js";
-import type { Job } from "../../../../domain/jobs/job.entity.js";
+import type { ScoredJob } from "../../../../domain/scoring/scored-job.entity.js";
 import type { MatchTicket } from "../../../../domain/match/match-ticket.entity.js";
 import { MATCH_TICKET_TTL_MS } from "../../../../domain/match/match-ticket-policy.js";
 import {
@@ -22,7 +22,10 @@ export class RedisMatchTicketStoreAdapter implements MatchTicketStorePort {
     await this.write({ id, status: "pending", createdAt });
   }
 
-  async markCompleted(id: string, jobs: readonly Job[]): Promise<void> {
+  async markCompleted(
+    id: string,
+    results: readonly ScoredJob[],
+  ): Promise<void> {
     const existing = await this.get(id);
     if (!existing) {
       return;
@@ -31,7 +34,7 @@ export class RedisMatchTicketStoreAdapter implements MatchTicketStorePort {
       id,
       status: "completed",
       createdAt: existing.createdAt,
-      jobs,
+      results,
     });
   }
 

@@ -1,7 +1,11 @@
 import type { Job } from "../../../../domain/jobs/job.entity.js";
+import type { ScoredJob } from "../../../../domain/scoring/scored-job.entity.js";
 import type { MatchTicket } from "../../../../domain/match/match-ticket.entity.js";
 
 type SerializedJob = Omit<Job, "fetchedAt"> & { readonly fetchedAt: string };
+type SerializedScoredJob = Omit<ScoredJob, "job"> & {
+  readonly job: SerializedJob;
+};
 
 type SerializedMatchTicket =
   | { readonly id: string; readonly status: "pending"; readonly createdAt: string }
@@ -9,7 +13,7 @@ type SerializedMatchTicket =
       readonly id: string;
       readonly status: "completed";
       readonly createdAt: string;
-      readonly jobs: readonly SerializedJob[];
+      readonly results: readonly SerializedScoredJob[];
     }
   | {
       readonly id: string;
@@ -18,6 +22,20 @@ type SerializedMatchTicket =
       readonly error: string;
     };
 
+function serializeScoredJob(scoredJob: ScoredJob): SerializedScoredJob {
+  return {
+    ...scoredJob,
+    job: { ...scoredJob.job, fetchedAt: scoredJob.job.fetchedAt.toISOString() },
+  };
+}
+
+function deserializeScoredJob(scoredJob: SerializedScoredJob): ScoredJob {
+  return {
+    ...scoredJob,
+    job: { ...scoredJob.job, fetchedAt: new Date(scoredJob.job.fetchedAt) },
+  };
+}
+
 export function serializeMatchTicket(ticket: MatchTicket): string {
   const base = { id: ticket.id, createdAt: ticket.createdAt.toISOString() };
 
@@ -25,10 +43,7 @@ export function serializeMatchTicket(ticket: MatchTicket): string {
     return JSON.stringify({
       ...base,
       status: "completed",
-      jobs: ticket.jobs.map((job) => ({
-        ...job,
-        fetchedAt: job.fetchedAt.toISOString(),
-      })),
+      results: ticket.results.map(serializeScoredJob),
     });
   }
 
@@ -48,10 +63,7 @@ export function deserializeMatchTicket(json: string): MatchTicket {
       id: record.id,
       status: "completed",
       createdAt,
-      jobs: record.jobs.map((job) => ({
-        ...job,
-        fetchedAt: new Date(job.fetchedAt),
-      })),
+      results: record.results.map(deserializeScoredJob),
     };
   }
 
