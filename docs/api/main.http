@@ -5,9 +5,10 @@
 GET {{baseUrl}}/health
 
 ### Match - Upload a CV (PDF or DOCX, 5MB max)
-# Returns 202 with an opaque ticket id. Rate-limited to 2 requests/IP/day
-# (429 with a resetAt timestamp once exceeded); parses the CV in memory and
-# never persists it — see ADR 0016 §2, §4.
+# Returns 202 with an opaque ticket id and the post-consumption remaining
+# request count for today: { ticketId, remaining }. Rate-limited to 2
+# requests/IP/day (429 with a resetAt timestamp once exceeded); parses the
+# CV in memory and never persists it — see ADR 0016 §2, §4.
 POST {{baseUrl}}/api/match
 Content-Type: multipart/form-data; boundary=----boundary
 

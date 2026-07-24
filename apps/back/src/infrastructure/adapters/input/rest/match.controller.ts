@@ -40,13 +40,13 @@ export function createMatchRouter(deps: MatchControllerDependencies): Router {
           return;
         }
 
-        const { ticketId } = await deps.createMatchRequestUseCase.execute({
+        const { ticketId, remaining } = await deps.createMatchRequestUseCase.execute({
           cvFile: { buffer: req.file.buffer, mimeType: req.file.mimetype },
           ip: req.ip ?? "unknown",
           now: new Date(),
         });
 
-        res.status(202).json({ ticketId });
+        res.status(202).json({ ticketId, remaining });
       } catch (error) {
         next(error);
       }
