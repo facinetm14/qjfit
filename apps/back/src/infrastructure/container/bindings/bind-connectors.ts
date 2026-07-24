@@ -35,13 +35,14 @@ export function bindConnectors(container: Container, config: AppConfig): void {
     .inSingletonScope();
 
   container
-    .bind<WttjRssConnectorOptions>(TYPES.WttjRssConnectorOptions)
-    .toConstantValue({ feedUrl: config.WTTJ_RSS_FEED_URL });
-
-  container
     .bind(TYPES.FetchSource)
     .to(FranceTravailConnector)
     .inSingletonScope();
 
-  container.bind(TYPES.FetchSource).to(WttjRssConnector).inSingletonScope();
+  //TODO: I'll unccomment this when I have a WTTJ RSS feed to test with.  
+
+  // container
+  //   .bind<WttjRssConnectorOptions>(TYPES.WttjRssConnectorOptions)
+  //   .toConstantValue({ feedUrl: config.WTTJ_RSS_FEED_URL });
+  // container.bind(TYPES.FetchSource).to(WttjRssConnector).inSingletonScope();
 }
