@@ -198,6 +198,7 @@ describe("createApp", () => {
 
       expect(postResponse.status).toBe(202);
       expect(typeof postResponse.body.ticketId).toBe("string");
+      expect(postResponse.body.remaining).toBe(MAX_MATCH_REQUESTS_PER_DAY - 1);
 
       await flushMicrotasks();
 

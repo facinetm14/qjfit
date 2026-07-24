@@ -176,6 +176,29 @@ describe("CreateMatchRequestUseCase", () => {
     expect(ticket?.status).toBe("pending");
   });
 
+  it("returns the rate limiter's post-consumption remaining count", async () => {
+    const useCase = new CreateMatchRequestUseCase(
+      new FakeRateLimiter({
+        allowed: true,
+        remaining: 1,
+        resetAt: new Date("2026-07-25T00:00:00.000Z"),
+      }),
+      new FakeCvTextExtractor(),
+      new FakeMatchTicketStore(),
+      new FakeJobsRepository([buildJob()]),
+      new FakeScoreMatchCandidates(),
+      new FakeLogger(),
+    );
+
+    const result = await useCase.execute({
+      cvFile: { buffer: Buffer.from("cv"), mimeType: "application/pdf" },
+      ip: "203.0.113.5",
+      now: new Date("2026-07-24T10:00:00.000Z"),
+    });
+
+    expect(result.remaining).toBe(1);
+  });
+
   it("eventually completes the ticket with scored results from the pool, using the parsed CV context", async () => {
     const matchTicketStore = new FakeMatchTicketStore();
     const jobs = [buildJob()];

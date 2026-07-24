@@ -1,17 +1,20 @@
 import { onUnmounted, ref } from 'vue';
-import { formatCountdown, msUntilMidnight } from '../utils/countdown.js';
+import { formatCountdown, msUntil } from '../utils/countdown.js';
 
 const TICK_INTERVAL_MS = 30_000;
 
-export function useMidnightCountdown() {
+export function useCountdown() {
   const label = ref('—');
   let timer: ReturnType<typeof setInterval> | null = null;
+  let target: Date | null = null;
 
   function tick() {
-    label.value = formatCountdown(msUntilMidnight(new Date()));
+    if (!target) return;
+    label.value = formatCountdown(msUntil(target, new Date()));
   }
 
-  function start() {
+  function start(resetAt: Date) {
+    target = resetAt;
     tick();
     stop();
     timer = setInterval(tick, TICK_INTERVAL_MS);

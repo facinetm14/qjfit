@@ -1,16 +1,25 @@
-export type JobSource = "France Travail" | "WTTJ";
-export type ContractType = "CDI" | "CDD" | "Freelance";
-export type RemotePolicy = "Full" | "Hybrid" | "On-site";
+// Source/contract/remote unions mirror apps/back/src/domain/jobs/job.entity.ts
+// and domain/shared/contract-type.ts — the two apps don't share a types
+// package, so these are kept in sync by hand.
+export type JobSource = "france-travail" | "wttj-rss";
+export type ContractType =
+  | "CDI"
+  | "CDD"
+  | "Freelance"
+  | "Internship"
+  | "Apprenticeship"
+  | "Other";
+export type RemotePolicy = "Full" | "Hybrid" | "OnSite" | "Unknown";
 export type ScoreTier = "high" | "mid" | "low";
 
 export interface MatchedJob {
-  readonly id: number;
+  readonly id: string;
   readonly title: string;
   readonly company: string;
   readonly location: string;
   readonly contract: ContractType;
   readonly remote: RemotePolicy;
-  readonly source: JobSource;
+  readonly source: string;
   readonly score: number;
   readonly daysAgo: number;
   readonly summary: string;
@@ -18,6 +27,26 @@ export interface MatchedJob {
   readonly gaps: readonly string[];
   readonly full: string;
   readonly url: string;
+}
+
+const SOURCE_LABELS: Record<JobSource, string> = {
+  "france-travail": "France Travail",
+  "wttj-rss": "Welcome to the Jungle",
+};
+
+export function sourceLabel(source: string): string {
+  return SOURCE_LABELS[source as JobSource] ?? source;
+}
+
+const REMOTE_POLICY_LABELS: Record<RemotePolicy, string> = {
+  Full: "Full remote",
+  Hybrid: "Hybrid",
+  OnSite: "On-site",
+  Unknown: "Remote policy unknown",
+};
+
+export function remotePolicyLabel(remote: RemotePolicy): string {
+  return REMOTE_POLICY_LABELS[remote];
 }
 
 export interface PoolStats {

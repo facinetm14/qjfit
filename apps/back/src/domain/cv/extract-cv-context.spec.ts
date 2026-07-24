@@ -66,4 +66,21 @@ describe("extractCvContext", () => {
 
     expect(context.techStack.filter((tech) => tech === "Python")).toHaveLength(1);
   });
+
+  describe("role spacing/hyphenation variants", () => {
+    it.each([
+      ["Fullstack Developer", "Full Stack Developer"],
+      ["Full-Stack Developer", "Full Stack Developer"],
+      ["Full Stack Engineer", "Full Stack Developer"],
+      ["Backend Engineer", "Backend Engineer"],
+      ["Back-End Developer", "Backend Developer"],
+      ["DevOps", "DevOps Engineer"],
+      ["Dev-Ops Engineer", "DevOps Engineer"],
+      ["Ingénieur Logiciel", "Software Engineer"],
+      ["Product Owner", "Product Manager"],
+    ])("resolves %s to the canonical role %s", (rawTitle, expectedRole) => {
+      const context = extractCvContext(rawTitle);
+      expect(context.targetRole).toBe(expectedRole);
+    });
+  });
 });
