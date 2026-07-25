@@ -9,9 +9,12 @@ import { filterRelevantJobs } from "../../../domain/scoring/relevance-filter.js"
 import { selectRecentCandidates } from "../../../domain/scoring/recency-tiebreak.js";
 import { computeRankingScore, daysSince } from "../../../domain/scoring/ranking.js";
 import { mapWithConcurrency } from "./map-with-concurrency.js";
+import { chunk } from "./chunk.js";
+import { parseScoreResult } from "./validate-score-result.js";
 import { PORT_TYPES } from "../../tokens.js";
 
-// PRD §3.4: max 5 concurrent LLM calls per match request.
+// PRD §3.4: max 5 concurrent LLM calls per match request — applies across
+// scoring batches (issue #16), not individual jobs.
 const MAX_CONCURRENT_SCORING_CALLS = 5;
 
 export interface ScoreMatchCandidatesInput {
@@ -25,6 +28,7 @@ export interface ScoreMatchCandidatesOptions {
   readonly candidateLimit: number;
   readonly decayDays: number;
   readonly roleSimilarityThreshold: number;
+  readonly batchSize: number;
 }
 
 export interface ScoreMatchCandidatesPort {
@@ -59,40 +63,64 @@ export class ScoreMatchCandidatesUseCase implements ScoreMatchCandidatesPort {
       this.options.roleSimilarityThreshold,
     );
     const candidates = selectRecentCandidates(relevant, this.options.candidateLimit);
+    const batches = chunk(candidates, this.options.batchSize);
 
     const entries = await mapWithConcurrency(
-      candidates,
+      batches,
       MAX_CONCURRENT_SCORING_CALLS,
-      (job) => this.scoringProvider.score(input.cvMarkdown, job),
+      (batch) => this.scoringProvider.scoreBatch(input.cvMarkdown, batch),
     );
 
     const scoredJobs: ScoredJob[] = [];
     for (const entry of entries) {
       if (entry.result.status === "rejected") {
         this.logger.error(
-          { jobId: entry.item.id, err: toErrorMessage(entry.result.reason) },
-          "Scoring failed for job; dropping it from the result set",
+          {
+            jobIds: entry.item.map((job) => job.id),
+            err: toErrorMessage(entry.result.reason),
+          },
+          "Scoring failed for a batch; dropping every job in it from the result set",
         );
         continue;
       }
 
-      const scoreResult = entry.result.value;
-      const rankingScore = computeRankingScore(
-        scoreResult.score,
-        daysSince(entry.item.fetchedAt, input.now),
-        this.options.decayDays,
-      );
+      const jobsById = new Map(entry.item.map((job) => [job.id, job]));
+      for (const rawResult of entry.result.value) {
+        const scoreResult = parseScoreResult(rawResult);
+        if (!scoreResult) {
+          this.logger.error(
+            { raw: rawResult },
+            "Dropping a malformed score result from a batch response",
+          );
+          continue;
+        }
 
-      scoredJobs.push({
-        job: entry.item,
-        score: scoreResult.score,
-        summary: scoreResult.summary,
-        matchReasons: scoreResult.matchReasons,
-        missingSkills: scoreResult.missingSkills,
-        seniorityFit: scoreResult.seniorityFit,
-        redFlags: scoreResult.redFlags,
-        rankingScore,
-      });
+        const job = jobsById.get(scoreResult.jobId);
+        if (!job) {
+          this.logger.error(
+            { jobId: scoreResult.jobId },
+            "Dropping a score result whose jobId doesn't match any job in its batch",
+          );
+          continue;
+        }
+
+        const rankingScore = computeRankingScore(
+          scoreResult.score,
+          daysSince(job.fetchedAt, input.now),
+          this.options.decayDays,
+        );
+
+        scoredJobs.push({
+          job,
+          score: scoreResult.score,
+          summary: scoreResult.summary,
+          matchReasons: scoreResult.matchReasons,
+          missingSkills: scoreResult.missingSkills,
+          seniorityFit: scoreResult.seniorityFit,
+          redFlags: scoreResult.redFlags,
+          rankingScore,
+        });
+      }
     }
 
     return scoredJobs.sort((a, b) => b.rankingScore - a.rankingScore);

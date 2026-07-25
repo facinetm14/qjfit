@@ -200,4 +200,41 @@ describe('loadConfig', () => {
       });
     }).toThrow('Invalid environment configuration');
   });
+
+  it('defaults SCORING_BATCH_SIZE to 10 when unset', () => {
+    const config = loadConfig({
+      DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      REDIS_URL: 'redis://localhost:6379',
+      NODE_ENV: 'development',
+      PORT: '3000',
+      CORS_ORIGIN: 'http://localhost:5173'
+    });
+
+    expect(config.SCORING_BATCH_SIZE).toBe(10);
+  });
+
+  it('accepts a custom SCORING_BATCH_SIZE', () => {
+    const config = loadConfig({
+      DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      REDIS_URL: 'redis://localhost:6379',
+      NODE_ENV: 'development',
+      PORT: '3000',
+      CORS_ORIGIN: 'http://localhost:5173',
+      SCORING_BATCH_SIZE: '25'
+    });
+
+    expect(config.SCORING_BATCH_SIZE).toBe(25);
+  });
+
+  it('rejects a SCORING_BATCH_SIZE below 1', () => {
+    expect(() => {
+      loadConfig({
+        DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+        NODE_ENV: 'development',
+        PORT: '3000',
+        CORS_ORIGIN: 'http://localhost:5173',
+        SCORING_BATCH_SIZE: '0'
+      });
+    }).toThrow('Invalid environment configuration');
+  });
 });

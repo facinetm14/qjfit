@@ -140,20 +140,23 @@ Because there's no persisted profile, matching is computed **fresh, end-to-end, 
 
 **Step 2 — Recency tiebreak**: among the jobs that pass the relevance filter, sort by `fetched_at`/posting date descending (most recent first) and take the top N (default: 50) as scoring candidates. Recency orders *within* the relevant set — it does not override relevance.
 
-**Step 3 — LLM scoring**: for each candidate, a scoring prompt is sent to the LLM:
+**Step 3 — LLM scoring**: candidates are scored in **batches** (default batch size: 10, configurable — issue #16), not one call per candidate: a single scoring call sends the CV once alongside N job descriptions and receives back N score results, instead of repeating the CV payload on every single call.
 
-**Input**: the anonymized markdown CV (already-extracted CV text, structured into markdown and stripped of email/phone/URL — issue #15) + raw job description
-**Output**: structured JSON with:
+**Input**: the anonymized markdown CV (already-extracted CV text, structured into markdown and stripped of email/phone/URL — issue #15), sent once per batch + a batch of raw job descriptions
+**Output**: an array of structured JSON results, one per job in the batch:
 
 ```json
-{
-  "score": 82,
-  "summary": "Senior Python role at a fintech scale-up. Stack matches 90%.",
-  "match_reasons": ["FastAPI", "PostgreSQL", "remote-friendly"],
-  "missing_skills": ["Kubernetes"],
-  "seniority_fit": "good",
-  "red_flags": []
-}
+[
+  {
+    "job_id": "job-123",
+    "score": 82,
+    "summary": "Senior Python role at a fintech scale-up. Stack matches 90%.",
+    "match_reasons": ["FastAPI", "PostgreSQL", "remote-friendly"],
+    "missing_skills": ["Kubernetes"],
+    "seniority_fit": "good",
+    "red_flags": []
+  }
+]
 ```
 
 Score is 0–100. Final ranking uses:
@@ -166,9 +169,9 @@ decay_days = 14  (configurable)
 
 **Ephemeral only**: scores are returned directly in the match response and never persisted. The same job can — and will — carry a different score on every future request, because it's matched against whatever CV was uploaded that time. There is no `rescore` endpoint and no "already scored" state to check, because nothing is cached. (This directly changes the v2.0 assumption that a job's score could be safely computed once and reused — see [ADR 0015](../adr/0015-anonymous-stateless-mvp.md).)
 
-**Failure handling**: if the LLM response fails schema validation for a given job, log the error (Pino) and drop that job from the result set for this request — do not crash the request over one bad response.
+**Failure handling**: if the LLM response fails schema validation for a given job, log the error (Pino) and drop that job from the result set for this request — do not crash the request over one bad response. This holds at the batch level too: one malformed item inside an otherwise-valid batch response only drops that job, not the rest of the batch; a batch call that fails outright (network/provider error) drops every job in that batch.
 
-**Bounded concurrency**: max 5 concurrent LLM calls per match request (unchanged from v2.0).
+**Bounded concurrency**: max 5 concurrent LLM calls per match request, applied across scoring batches — not individual jobs (issue #16; unchanged concurrency limit from v2.0).
 
 ### 3.5 Match Flow & Results View
 
