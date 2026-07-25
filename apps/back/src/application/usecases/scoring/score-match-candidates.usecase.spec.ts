@@ -78,7 +78,7 @@ describe("ScoreMatchCandidatesUseCase", () => {
     const irrelevant = buildJob({ id: "irrelevant", description: "We use Ruby." });
     const scored: string[] = [];
     const scoringProvider: ScoringProviderPort = {
-      score: async (job) => {
+      score: async (cvMarkdown, job) => {
         scored.push(job.id);
         return buildScoreResult(job.id);
       },
@@ -92,6 +92,7 @@ describe("ScoreMatchCandidatesUseCase", () => {
 
     await useCase.execute({
       cvContext: buildCvContext({ techStack: ["TypeScript"] }),
+      cvMarkdown: "## EXPERIENCE\n\n- TypeScript",
       jobs: [relevant, irrelevant],
       now,
     });
@@ -107,7 +108,7 @@ describe("ScoreMatchCandidatesUseCase", () => {
     ];
     const scored: string[] = [];
     const scoringProvider: ScoringProviderPort = {
-      score: async (job) => {
+      score: async (cvMarkdown, job) => {
         scored.push(job.id);
         return buildScoreResult(job.id);
       },
@@ -119,7 +120,7 @@ describe("ScoreMatchCandidatesUseCase", () => {
       { candidateLimit: 2, decayDays: 14, roleSimilarityThreshold: 0.25 },
     );
 
-    await useCase.execute({ cvContext: buildCvContext(), jobs, now });
+    await useCase.execute({ cvContext: buildCvContext(), cvMarkdown: "## EXPERIENCE", jobs, now });
 
     expect(scored.sort()).toEqual(["middle", "newest"]);
   });
@@ -129,7 +130,7 @@ describe("ScoreMatchCandidatesUseCase", () => {
     let concurrent = 0;
     let peakConcurrent = 0;
     const scoringProvider: ScoringProviderPort = {
-      score: async (job) => {
+      score: async (cvMarkdown, job) => {
         concurrent += 1;
         peakConcurrent = Math.max(peakConcurrent, concurrent);
         await delay(10);
@@ -144,7 +145,7 @@ describe("ScoreMatchCandidatesUseCase", () => {
       { candidateLimit: 50, decayDays: 14, roleSimilarityThreshold: 0.25 },
     );
 
-    await useCase.execute({ cvContext: buildCvContext(), jobs, now });
+    await useCase.execute({ cvContext: buildCvContext(), cvMarkdown: "## EXPERIENCE", jobs, now });
 
     expect(peakConcurrent).toBeLessThanOrEqual(5);
     expect(peakConcurrent).toBeGreaterThan(1);
@@ -154,7 +155,7 @@ describe("ScoreMatchCandidatesUseCase", () => {
     const good = buildJob({ id: "good" });
     const bad = buildJob({ id: "bad" });
     const scoringProvider: ScoringProviderPort = {
-      score: async (job) => {
+      score: async (cvMarkdown, job) => {
         if (job.id === "bad") {
           throw new Error("invalid LLM response shape");
         }
@@ -171,6 +172,7 @@ describe("ScoreMatchCandidatesUseCase", () => {
 
     const results = await useCase.execute({
       cvContext: buildCvContext(),
+      cvMarkdown: "## EXPERIENCE",
       jobs: [good, bad],
       now,
     });
@@ -190,7 +192,7 @@ describe("ScoreMatchCandidatesUseCase", () => {
       fetchedAt: new Date("2026-01-01T00:00:00.000Z"),
     });
     const scoringProvider: ScoringProviderPort = {
-      score: async (job) =>
+      score: async (cvMarkdown, job) =>
         buildScoreResult(job.id, { score: job.id === "recent-low" ? 40 : 90 }),
     };
     const useCase = new ScoreMatchCandidatesUseCase(
@@ -202,11 +204,38 @@ describe("ScoreMatchCandidatesUseCase", () => {
 
     const results = await useCase.execute({
       cvContext: buildCvContext(),
+      cvMarkdown: "## EXPERIENCE",
       jobs: [oldHighScore, recentLowScore],
       now,
     });
 
     expect(results.map((r) => r.job.id)).toEqual(["recent-low", "old-high"]);
     expect(results[0]?.rankingScore).toBeGreaterThan(results[1]?.rankingScore ?? 0);
+  });
+
+  it("invokes the scoring provider with the anonymized markdown CV, not just the job", async () => {
+    const job = buildJob();
+    const receivedCvMarkdowns: string[] = [];
+    const scoringProvider: ScoringProviderPort = {
+      score: async (cvMarkdown, scoredJob) => {
+        receivedCvMarkdowns.push(cvMarkdown);
+        return buildScoreResult(scoredJob.id);
+      },
+    };
+    const useCase = new ScoreMatchCandidatesUseCase(
+      scoringProvider,
+      embeddingProvider,
+      new FakeLogger(),
+      { candidateLimit: 50, decayDays: 14, roleSimilarityThreshold: 0.25 },
+    );
+
+    await useCase.execute({
+      cvContext: buildCvContext(),
+      cvMarkdown: "## EXPERIENCE\n\n- 5 years of backend work",
+      jobs: [job],
+      now,
+    });
+
+    expect(receivedCvMarkdowns).toEqual(["## EXPERIENCE\n\n- 5 years of backend work"]);
   });
 });
