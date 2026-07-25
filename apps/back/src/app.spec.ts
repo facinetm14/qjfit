@@ -15,7 +15,13 @@ import type { LoggerPort } from "./application/ports/output/logger.port.js";
 import type { Job } from "./domain/jobs/job.entity.js";
 import type { MatchTicket } from "./domain/match/match-ticket.entity.js";
 import type { ScoredJob } from "./domain/scoring/scored-job.entity.js";
-import type { ScoreMatchCandidatesInput, ScoreMatchCandidatesPort } from "./application/usecases/scoring/score-match-candidates.usecase.js";
+import {
+  ScoreMatchCandidatesUseCase,
+  type ScoreMatchCandidatesInput,
+  type ScoreMatchCandidatesPort,
+} from "./application/usecases/scoring/score-match-candidates.usecase.js";
+import type { ScoringProviderPort } from "./application/ports/output/scoring-provider.port.js";
+import { StubEmbeddingProviderAdapter } from "./infrastructure/adapters/output/embedding/stub-embedding-provider.adapter.js";
 import { MAX_MATCH_REQUESTS_PER_DAY } from "./domain/rate-limiting/rate-limit-policy.js";
 
 const canBindLocalPort = process.env.ALLOW_LOCAL_BIND === "1";
@@ -137,7 +143,7 @@ function buildDeps(overrides: {
   rateLimiter?: RateLimiterPort;
   jobs?: readonly Job[];
   matchTicketStore?: MatchTicketStorePort;
-  scoreMatchCandidates?: FakeScoreMatchCandidates;
+  scoreMatchCandidates?: ScoreMatchCandidatesPort;
 } = {}): AppDependencies {
   const rateLimiter = overrides.rateLimiter ?? new FakeRateLimiter();
   const matchTicketStore = overrides.matchTicketStore ?? new FakeMatchTicketStore();
@@ -223,6 +229,65 @@ describe("createApp", () => {
       expect(scoreMatchCandidates.calls[0]?.cvMarkdown).toBe(
         "Backend Developer, Paris, CDI, 5 years of experience",
       );
+    });
+
+    maybeIt("scores through the real batched pipeline, sending multiple jobs per scoring call", async () => {
+      const logger = pino({ enabled: false });
+      const jobs = Array.from({ length: 5 }, (_, i) =>
+        buildJob({ id: `job-${i}`, title: "Backend Developer", location: "Paris" }),
+      );
+      const batchesReceived: string[][] = [];
+      const scoringProvider: ScoringProviderPort = {
+        scoreBatch: async (_cvMarkdown, batch) => {
+          batchesReceived.push(batch.map((job) => job.id));
+          return batch.map((job) => ({
+            jobId: job.id,
+            score: 70,
+            summary: "Good match",
+            matchReasons: ["Backend"],
+            missingSkills: [],
+            seniorityFit: "good",
+            redFlags: [],
+            rawResponse: null,
+          }));
+        },
+      };
+      // The real use case (not FakeScoreMatchCandidates) — exercises the
+      // actual relevance filter, chunking, and bounded-concurrency batching
+      // (#16) through the full HTTP request lifecycle.
+      const scoreMatchCandidates = new ScoreMatchCandidatesUseCase(
+        scoringProvider,
+        new StubEmbeddingProviderAdapter(),
+        new FakeLogger(),
+        { candidateLimit: 50, decayDays: 14, roleSimilarityThreshold: 0.25, batchSize: 2 },
+      );
+      const app = createApp(logger, buildDeps({ jobs, scoreMatchCandidates }));
+
+      const postResponse = await request(app)
+        .post("/api/match")
+        .attach("cv", Buffer.from("%PDF-1.4 fake cv"), {
+          filename: "cv.pdf",
+          contentType: "application/pdf",
+        });
+
+      await flushMicrotasks();
+
+      const getResponse = await request(app).get(
+        `/api/match/${postResponse.body.ticketId}`,
+      );
+
+      expect(getResponse.status).toBe(200);
+      expect(getResponse.body.status).toBe("completed");
+      expect(getResponse.body.results).toHaveLength(5);
+      expect(
+        (getResponse.body.results as Array<{ score: number }>).every((r) => r.score === 70),
+      ).toBe(true);
+
+      // 5 jobs at batch size 2 means 3 calls of sizes [2, 2, 1] — never one
+      // call per job.
+      expect(batchesReceived).toHaveLength(3);
+      expect(batchesReceived.every((batch) => batch.length <= 2)).toBe(true);
+      expect(batchesReceived.some((batch) => batch.length > 1)).toBe(true);
     });
 
     maybeIt("returns 404 when polling an unknown ticket id", async () => {
