@@ -45,6 +45,9 @@ const envSchema = z.object({
   // vector space behaves; 0.25 cleanly separates related titles
   // (>= 0.4 in that space) from unrelated ones (<= 0.16).
   ROLE_SIMILARITY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.25),
+  // Batched scoring (issue #16): how many candidate jobs share a single
+  // scoring call's CV payload, instead of one call per job.
+  SCORING_BATCH_SIZE: z.coerce.number().int().min(1).default(10),
 });
 
 export type AppConfig = Readonly<z.infer<typeof envSchema>>;
