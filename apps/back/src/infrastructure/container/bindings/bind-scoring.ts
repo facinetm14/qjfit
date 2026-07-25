@@ -12,6 +12,7 @@ export function bindScoring(container: Container, config: AppConfig): void {
       candidateLimit: config.SCORING_CANDIDATE_LIMIT,
       decayDays: config.SCORING_DECAY_DAYS,
       roleSimilarityThreshold: config.ROLE_SIMILARITY_THRESHOLD,
+      batchSize: config.SCORING_BATCH_SIZE,
     });
 
   container

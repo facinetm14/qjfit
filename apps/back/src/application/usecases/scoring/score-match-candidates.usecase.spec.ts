@@ -70,6 +70,15 @@ const embeddingProvider: EmbeddingProviderPort = {
   embed: async () => [],
 };
 
+// A batch size larger than every test's job count, so tests unrelated to
+// batching/concurrency behave as if everything is sent in one call.
+const SINGLE_BATCH_OPTIONS = {
+  candidateLimit: 50,
+  decayDays: 14,
+  roleSimilarityThreshold: 0.25,
+  batchSize: 50,
+};
+
 describe("ScoreMatchCandidatesUseCase", () => {
   const now = new Date("2026-07-24T00:00:00.000Z");
 
@@ -78,16 +87,16 @@ describe("ScoreMatchCandidatesUseCase", () => {
     const irrelevant = buildJob({ id: "irrelevant", description: "We use Ruby." });
     const scored: string[] = [];
     const scoringProvider: ScoringProviderPort = {
-      score: async (cvMarkdown, job) => {
-        scored.push(job.id);
-        return buildScoreResult(job.id);
+      scoreBatch: async (cvMarkdown, jobs) => {
+        scored.push(...jobs.map((job) => job.id));
+        return jobs.map((job) => buildScoreResult(job.id));
       },
     };
     const useCase = new ScoreMatchCandidatesUseCase(
       scoringProvider,
       embeddingProvider,
       new FakeLogger(),
-      { candidateLimit: 50, decayDays: 14, roleSimilarityThreshold: 0.25 },
+      SINGLE_BATCH_OPTIONS,
     );
 
     await useCase.execute({
@@ -108,16 +117,16 @@ describe("ScoreMatchCandidatesUseCase", () => {
     ];
     const scored: string[] = [];
     const scoringProvider: ScoringProviderPort = {
-      score: async (cvMarkdown, job) => {
-        scored.push(job.id);
-        return buildScoreResult(job.id);
+      scoreBatch: async (cvMarkdown, batch) => {
+        scored.push(...batch.map((job) => job.id));
+        return batch.map((job) => buildScoreResult(job.id));
       },
     };
     const useCase = new ScoreMatchCandidatesUseCase(
       scoringProvider,
       embeddingProvider,
       new FakeLogger(),
-      { candidateLimit: 2, decayDays: 14, roleSimilarityThreshold: 0.25 },
+      { ...SINGLE_BATCH_OPTIONS, candidateLimit: 2 },
     );
 
     await useCase.execute({ cvContext: buildCvContext(), cvMarkdown: "## EXPERIENCE", jobs, now });
@@ -125,24 +134,49 @@ describe("ScoreMatchCandidatesUseCase", () => {
     expect(scored.sort()).toEqual(["middle", "newest"]);
   });
 
-  it("never scores more than 5 jobs concurrently", async () => {
-    const jobs = Array.from({ length: 10 }, (_, i) => buildJob({ id: `job-${i}` }));
-    let concurrent = 0;
-    let peakConcurrent = 0;
+  it("sends every candidate job's CV payload once per batch, batched per the configured size", async () => {
+    const jobs = Array.from({ length: 5 }, (_, i) => buildJob({ id: `job-${i}` }));
+    const batchesReceived: string[][] = [];
     const scoringProvider: ScoringProviderPort = {
-      score: async (cvMarkdown, job) => {
-        concurrent += 1;
-        peakConcurrent = Math.max(peakConcurrent, concurrent);
-        await delay(10);
-        concurrent -= 1;
-        return buildScoreResult(job.id);
+      scoreBatch: async (cvMarkdown, batch) => {
+        batchesReceived.push(batch.map((job) => job.id));
+        return batch.map((job) => buildScoreResult(job.id));
       },
     };
     const useCase = new ScoreMatchCandidatesUseCase(
       scoringProvider,
       embeddingProvider,
       new FakeLogger(),
-      { candidateLimit: 50, decayDays: 14, roleSimilarityThreshold: 0.25 },
+      { ...SINGLE_BATCH_OPTIONS, batchSize: 2 },
+    );
+
+    await useCase.execute({ cvContext: buildCvContext(), cvMarkdown: "## EXPERIENCE", jobs, now });
+
+    expect(batchesReceived).toEqual([
+      ["job-0", "job-1"],
+      ["job-2", "job-3"],
+      ["job-4"],
+    ]);
+  });
+
+  it("never runs more than 5 scoring batches concurrently", async () => {
+    const jobs = Array.from({ length: 20 }, (_, i) => buildJob({ id: `job-${i}` }));
+    let concurrent = 0;
+    let peakConcurrent = 0;
+    const scoringProvider: ScoringProviderPort = {
+      scoreBatch: async (cvMarkdown, batch) => {
+        concurrent += 1;
+        peakConcurrent = Math.max(peakConcurrent, concurrent);
+        await delay(10);
+        concurrent -= 1;
+        return batch.map((job) => buildScoreResult(job.id));
+      },
+    };
+    const useCase = new ScoreMatchCandidatesUseCase(
+      scoringProvider,
+      embeddingProvider,
+      new FakeLogger(),
+      { ...SINGLE_BATCH_OPTIONS, batchSize: 2 },
     );
 
     await useCase.execute({ cvContext: buildCvContext(), cvMarkdown: "## EXPERIENCE", jobs, now });
@@ -151,15 +185,12 @@ describe("ScoreMatchCandidatesUseCase", () => {
     expect(peakConcurrent).toBeGreaterThan(1);
   });
 
-  it("drops a job whose scoring call fails, logs it, and keeps the rest", async () => {
+  it("drops every job in a batch whose scoring call itself fails, logging once for the whole batch", async () => {
     const good = buildJob({ id: "good" });
     const bad = buildJob({ id: "bad" });
     const scoringProvider: ScoringProviderPort = {
-      score: async (cvMarkdown, job) => {
-        if (job.id === "bad") {
-          throw new Error("invalid LLM response shape");
-        }
-        return buildScoreResult(job.id);
+      scoreBatch: async () => {
+        throw new Error("provider unavailable");
       },
     };
     const logger = new FakeLogger();
@@ -167,7 +198,36 @@ describe("ScoreMatchCandidatesUseCase", () => {
       scoringProvider,
       embeddingProvider,
       logger,
-      { candidateLimit: 50, decayDays: 14, roleSimilarityThreshold: 0.25 },
+      SINGLE_BATCH_OPTIONS,
+    );
+
+    const results = await useCase.execute({
+      cvContext: buildCvContext(),
+      cvMarkdown: "## EXPERIENCE",
+      jobs: [good, bad],
+      now,
+    });
+
+    expect(results).toEqual([]);
+    expect(logger.errors).toHaveLength(1);
+    expect(logger.errors[0]?.context).toMatchObject({ jobIds: ["good", "bad"] });
+  });
+
+  it("drops only the malformed item from a batch response, keeping the rest of the batch", async () => {
+    const good = buildJob({ id: "good" });
+    const bad = buildJob({ id: "bad" });
+    const scoringProvider: ScoringProviderPort = {
+      scoreBatch: async () => [
+        buildScoreResult("good"),
+        { jobId: "bad", score: "not-a-number" }, // fails schema validation
+      ],
+    };
+    const logger = new FakeLogger();
+    const useCase = new ScoreMatchCandidatesUseCase(
+      scoringProvider,
+      embeddingProvider,
+      logger,
+      SINGLE_BATCH_OPTIONS,
     );
 
     const results = await useCase.execute({
@@ -179,7 +239,32 @@ describe("ScoreMatchCandidatesUseCase", () => {
 
     expect(results.map((r) => r.job.id)).toEqual(["good"]);
     expect(logger.errors).toHaveLength(1);
-    expect(logger.errors[0]?.context).toMatchObject({ jobId: "bad" });
+    expect(logger.errors[0]?.message).toMatch(/malformed/i);
+  });
+
+  it("drops a valid-looking result whose jobId doesn't match any job in its batch", async () => {
+    const job = buildJob({ id: "job-1" });
+    const scoringProvider: ScoringProviderPort = {
+      scoreBatch: async () => [buildScoreResult("some-other-job-id")],
+    };
+    const logger = new FakeLogger();
+    const useCase = new ScoreMatchCandidatesUseCase(
+      scoringProvider,
+      embeddingProvider,
+      logger,
+      SINGLE_BATCH_OPTIONS,
+    );
+
+    const results = await useCase.execute({
+      cvContext: buildCvContext(),
+      cvMarkdown: "## EXPERIENCE",
+      jobs: [job],
+      now,
+    });
+
+    expect(results).toEqual([]);
+    expect(logger.errors).toHaveLength(1);
+    expect(logger.errors[0]?.context).toMatchObject({ jobId: "some-other-job-id" });
   });
 
   it("ranks results by ranking_score = score * exp(-daysSincePosted/decayDays), most relevant first", async () => {
@@ -192,14 +277,14 @@ describe("ScoreMatchCandidatesUseCase", () => {
       fetchedAt: new Date("2026-01-01T00:00:00.000Z"),
     });
     const scoringProvider: ScoringProviderPort = {
-      score: async (cvMarkdown, job) =>
-        buildScoreResult(job.id, { score: job.id === "recent-low" ? 40 : 90 }),
+      scoreBatch: async (cvMarkdown, batch) =>
+        batch.map((job) => buildScoreResult(job.id, { score: job.id === "recent-low" ? 40 : 90 })),
     };
     const useCase = new ScoreMatchCandidatesUseCase(
       scoringProvider,
       embeddingProvider,
       new FakeLogger(),
-      { candidateLimit: 50, decayDays: 14, roleSimilarityThreshold: 0.25 },
+      SINGLE_BATCH_OPTIONS,
     );
 
     const results = await useCase.execute({
@@ -213,20 +298,20 @@ describe("ScoreMatchCandidatesUseCase", () => {
     expect(results[0]?.rankingScore).toBeGreaterThan(results[1]?.rankingScore ?? 0);
   });
 
-  it("invokes the scoring provider with the anonymized markdown CV, not just the job", async () => {
+  it("invokes the scoring provider with the anonymized markdown CV, not just the jobs", async () => {
     const job = buildJob();
     const receivedCvMarkdowns: string[] = [];
     const scoringProvider: ScoringProviderPort = {
-      score: async (cvMarkdown, scoredJob) => {
+      scoreBatch: async (cvMarkdown, batch) => {
         receivedCvMarkdowns.push(cvMarkdown);
-        return buildScoreResult(scoredJob.id);
+        return batch.map((scoredJob) => buildScoreResult(scoredJob.id));
       },
     };
     const useCase = new ScoreMatchCandidatesUseCase(
       scoringProvider,
       embeddingProvider,
       new FakeLogger(),
-      { candidateLimit: 50, decayDays: 14, roleSimilarityThreshold: 0.25 },
+      SINGLE_BATCH_OPTIONS,
     );
 
     await useCase.execute({
