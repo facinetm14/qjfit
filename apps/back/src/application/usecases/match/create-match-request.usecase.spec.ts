@@ -230,6 +230,7 @@ describe("CreateMatchRequestUseCase", () => {
       location: "Paris",
       contractTypes: ["CDI"],
     });
+    expect(scoreMatchCandidates.calls[0]?.cvMarkdown).toBe("Backend Developer, Paris, CDI");
   });
 
   it("marks the ticket failed when the candidate lookup throws", async () => {

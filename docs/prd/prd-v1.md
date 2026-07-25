@@ -142,7 +142,7 @@ Because there's no persisted profile, matching is computed **fresh, end-to-end, 
 
 **Step 3 — LLM scoring**: for each candidate, a scoring prompt is sent to the LLM:
 
-**Input**: the parsed CV's profile summary + raw job description
+**Input**: the anonymized markdown CV (already-extracted CV text, structured into markdown and stripped of email/phone/URL — issue #15) + raw job description
 **Output**: structured JSON with:
 
 ```json

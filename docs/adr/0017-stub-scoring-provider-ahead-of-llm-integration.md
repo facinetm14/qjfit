@@ -64,3 +64,26 @@ needs to change.
 - No score, summary, or reasoning is persisted anywhere durable — results
   live only in the same short-TTL Redis match-ticket store issue #4
   introduced, unchanged in that respect.
+
+## Amendment (2026-07-25, issue #15)
+
+`ScoringProviderPort.score` originally took only a `Job` — no CV data at
+all, a gap left open by this ADR's original scope (it stubbed the LLM
+*call*, but the port's input shape hadn't yet been reconciled with PRD
+§3.4 step 3, which always specified a CV input). `score` is now `score(
+cvMarkdown: string, job: Job): Promise<ScoreResult>`.
+
+`cvMarkdown` is not the raw uploaded file or the regex-extracted
+`CvContext` (still used for the relevance pre-filter, unchanged) — it's the
+CV's extracted plain text run through a deterministic markdown converter
+(`domain/cv/convert-cv-to-markdown.ts`) that preserves section/list
+structure the `CvContext` extraction drops, then stripped of email
+addresses, phone numbers, and URLs via regex. `CreateMatchRequestUseCase`
+computes it alongside `CvContext` from the same in-memory extracted text
+and discards the raw text afterward, same as before (ADR 0015 — nothing
+CV-derived is ever persisted).
+
+`StubScoringProviderAdapter` accepts the new parameter but, being a stub,
+still ignores its content (the deterministic per-job hash is unaffected).
+The real LLM-backed adapter (still deferred, per this ADR's original
+decision) is what will actually consume `cvMarkdown` in its prompt.
