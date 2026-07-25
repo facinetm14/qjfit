@@ -19,8 +19,8 @@ function hashToScore(jobId: string): number {
  */
 @injectable()
 export class StubScoringProviderAdapter implements ScoringProviderPort {
-  async score(_cvMarkdown: string, job: Job): Promise<ScoreResult> {
-    return {
+  async scoreBatch(_cvMarkdown: string, jobs: readonly Job[]): Promise<readonly ScoreResult[]> {
+    return jobs.map((job) => ({
       jobId: job.id,
       score: hashToScore(job.id),
       summary: "Stub score — LLM scoring not yet integrated (see issue #5).",
@@ -29,6 +29,6 @@ export class StubScoringProviderAdapter implements ScoringProviderPort {
       seniorityFit: "unknown",
       redFlags: [],
       rawResponse: null,
-    };
+    }));
   }
 }

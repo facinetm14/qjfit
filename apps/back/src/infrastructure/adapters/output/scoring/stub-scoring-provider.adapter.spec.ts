@@ -22,47 +22,69 @@ function buildJob(overrides: Partial<Job> = {}): Job {
 }
 
 describe("StubScoringProviderAdapter", () => {
+  it("returns one result per job in the batch, in order", async () => {
+    const adapter = new StubScoringProviderAdapter();
+    const jobs = [buildJob({ id: "job-a" }), buildJob({ id: "job-b" }), buildJob({ id: "job-c" })];
+
+    const results = await adapter.scoreBatch(CV_MARKDOWN, jobs);
+
+    expect(results).toHaveLength(3);
+    expect(results.map((r) => (r as { jobId: string }).jobId)).toEqual(["job-a", "job-b", "job-c"]);
+  });
+
   it("returns a deterministic score in [0, 100] for the same job id", async () => {
     const adapter = new StubScoringProviderAdapter();
     const job = buildJob({ id: "same-id" });
 
-    const first = await adapter.score(CV_MARKDOWN, job);
-    const second = await adapter.score(CV_MARKDOWN, job);
+    const [first] = await adapter.scoreBatch(CV_MARKDOWN, [job]);
+    const [second] = await adapter.scoreBatch(CV_MARKDOWN, [job]);
 
-    expect(first.score).toBe(second.score);
-    expect(first.score).toBeGreaterThanOrEqual(0);
-    expect(first.score).toBeLessThanOrEqual(100);
+    expect(first).toEqual(second);
+    const score = (first as { score: number }).score;
+    expect(score).toBeGreaterThanOrEqual(0);
+    expect(score).toBeLessThanOrEqual(100);
   });
 
-  it("returns the job's id and placeholder scoring fields", async () => {
+  it("returns each job's id and placeholder scoring fields", async () => {
     const adapter = new StubScoringProviderAdapter();
 
-    const result = await adapter.score(CV_MARKDOWN, buildJob({ id: "job-42" }));
+    const [result] = await adapter.scoreBatch(CV_MARKDOWN, [buildJob({ id: "job-42" })]);
 
-    expect(result.jobId).toBe("job-42");
-    expect(result.matchReasons).toEqual([]);
-    expect(result.missingSkills).toEqual([]);
-    expect(result.redFlags).toEqual([]);
-    expect(result.seniorityFit).toBe("unknown");
-    expect(result.summary).toMatch(/stub/i);
+    expect(result).toMatchObject({
+      jobId: "job-42",
+      matchReasons: [],
+      missingSkills: [],
+      redFlags: [],
+      seniorityFit: "unknown",
+    });
+    expect((result as { summary: string }).summary).toMatch(/stub/i);
   });
 
   it("varies the score across different job ids", async () => {
     const adapter = new StubScoringProviderAdapter();
 
-    const a = await adapter.score(CV_MARKDOWN, buildJob({ id: "aaaaaaaa" }));
-    const b = await adapter.score(CV_MARKDOWN, buildJob({ id: "zzzzzzzz" }));
+    const results = await adapter.scoreBatch(CV_MARKDOWN, [
+      buildJob({ id: "aaaaaaaa" }),
+      buildJob({ id: "zzzzzzzz" }),
+    ]);
 
-    expect(a.score).not.toBe(b.score);
+    const [a, b] = results as ReadonlyArray<{ score: number }>;
+    expect(a?.score).not.toBe(b?.score);
   });
 
   it("accepts the markdown CV without affecting the deterministic job-id-based score", async () => {
     const adapter = new StubScoringProviderAdapter();
     const job = buildJob({ id: "same-id" });
 
-    const withOneCv = await adapter.score(CV_MARKDOWN, job);
-    const withAnotherCv = await adapter.score("## SKILLS\n\n- Python", job);
+    const [withOneCv] = await adapter.scoreBatch(CV_MARKDOWN, [job]);
+    const [withAnotherCv] = await adapter.scoreBatch("## SKILLS\n\n- Python", [job]);
 
-    expect(withOneCv.score).toBe(withAnotherCv.score);
+    expect((withOneCv as { score: number }).score).toBe((withAnotherCv as { score: number }).score);
+  });
+
+  it("returns an empty array for an empty batch", async () => {
+    const adapter = new StubScoringProviderAdapter();
+
+    expect(await adapter.scoreBatch(CV_MARKDOWN, [])).toEqual([]);
   });
 });

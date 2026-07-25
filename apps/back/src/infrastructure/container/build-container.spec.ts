@@ -27,6 +27,7 @@ function buildConfig(): AppConfig {
     SCORING_CANDIDATE_LIMIT: 50,
     SCORING_DECAY_DAYS: 14,
     ROLE_SIMILARITY_THRESHOLD: 0.25,
+    SCORING_BATCH_SIZE: 10,
   };
 }
 
