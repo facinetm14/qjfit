@@ -19,7 +19,7 @@ function hashToScore(jobId: string): number {
  */
 @injectable()
 export class StubScoringProviderAdapter implements ScoringProviderPort {
-  async score(job: Job): Promise<ScoreResult> {
+  async score(_cvMarkdown: string, job: Job): Promise<ScoreResult> {
     return {
       jobId: job.id,
       score: hashToScore(job.id),
