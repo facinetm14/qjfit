@@ -46,8 +46,17 @@ const envSchema = z.object({
   // (>= 0.4 in that space) from unrelated ones (<= 0.16).
   ROLE_SIMILARITY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.25),
   // Batched scoring (issue #16): how many candidate jobs share a single
-  // scoring call's CV payload, instead of one call per job.
-  SCORING_BATCH_SIZE: z.coerce.number().int().min(1).default(10),
+  // scoring call's CV payload, instead of one call per job. Defaults to 50
+  // (the full SCORING_CANDIDATE_LIMIT) so a match request costs a single
+  // OpenRouter free-tier request instead of up to 5 — see ADR 0020.
+  SCORING_BATCH_SIZE: z.coerce.number().int().min(1).default(50),
+  // Real ScoringProviderPort adapter (issue #21, ADR 0020) — interim free
+  // provider via OpenRouter, ahead of a later paid Claude-backed adapter.
+  // No fallback provider, so this is hard-required at boot like the other
+  // scoring options above.
+  OPENROUTER_API_KEY: z.string().min(1),
+  OPENROUTER_MODEL: z.string().default("minimax/minimax-m3:free"),
+  OPENROUTER_BASE_URL: z.string().default("https://openrouter.ai/api/v1"),
 });
 
 export type AppConfig = Readonly<z.infer<typeof envSchema>>;

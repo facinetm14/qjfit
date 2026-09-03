@@ -16,6 +16,7 @@ describe("resolveConfig", () => {
       {
         DATABASE_URL: "postgresql://QJFit:password@db:5432/QJFit",
         REDIS_URL: "redis://localhost:6379",
+        OPENROUTER_API_KEY: "test-key",
         NODE_ENV: "development",
         PORT: "3000",
         CORS_ORIGIN: "http://localhost:5173",

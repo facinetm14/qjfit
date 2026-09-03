@@ -27,7 +27,10 @@ function buildConfig(): AppConfig {
     SCORING_CANDIDATE_LIMIT: 50,
     SCORING_DECAY_DAYS: 14,
     ROLE_SIMILARITY_THRESHOLD: 0.25,
-    SCORING_BATCH_SIZE: 10,
+    SCORING_BATCH_SIZE: 50,
+    OPENROUTER_API_KEY: "test-key",
+    OPENROUTER_MODEL: "minimax/minimax-m3:free",
+    OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
   };
 }
 

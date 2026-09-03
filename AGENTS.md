@@ -11,7 +11,7 @@ QJFit is a stateless, no-signup web application. Job offers are aggregated into 
 
 **ADR 0016 migration status.** The pre-pivot surface it supersedes (`GET/PUT /api/profile`, `POST /api/fetch`, the `Profile`/`Score` Prisma models, `Job.status`/`JobStatus`) is fully deleted. The cron-driven job pool refresh (§3) is implemented: `bootstrap.ts` wires `CreateFetchRunUseCase`/`ExecuteFetchRunLifecycleUseCase` behind an in-process `node-cron` scheduler (`infrastructure/adapters/input/scheduler/`) on the `FETCH_RUN_CRON_SCHEDULE` interval — no route triggers a fetch. A manual/ops trigger is available as a CLI script instead: `yarn run-jobs` (`apps/back/src/run-jobs-cli.ts`/`run-jobs.ts`), which calls the same `FetchRunScheduler.triggerRun()` seam. `POST /api/match` and `GET /api/match/:id` (§4) are implemented — `match.controller.ts`, backed by the Redis rate limiter and Redis match-ticket store — and the frontend (`apps/front/src/composables/useMatchFlow.ts`) already calls them for real, no mock data in the request path. **Still outstanding: `GET /api/jobs` and `GET /api/runs`.**
 
-Scoring is currently **stubbed**, not real LLM scoring: `StubScoringProviderAdapter` (ADR 0017) returns a deterministic hash-based score ignoring CV content, and `StubEmbeddingProviderAdapter` (ADR 0018) backs the role-gate similarity check. Wiring a real Gemini-backed `ScoringProviderPort` is tracked as issue #21 (accepted design: `gemini-2.5-flash-lite` via native `fetch`, `GEMINI_API_KEY` hard-required at boot once implemented) — its scope explicitly excludes the embedding provider, which has no tracked follow-up yet. Don't treat `score`/`summary`/`matchReasons`/`missingSkills` in a match response as genuine reasoning until #21 lands.
+**Scoring is real; embeddings are still stubbed.** `ScoringProviderPort` is bound to `OpenRouterScoringProviderAdapter` (ADR 0020, closing issue #21) — a free-tier interim provider (`minimax/minimax-m3:free` via OpenRouter, native `fetch`, `OPENROUTER_API_KEY` hard-required at boot) chosen after Gemini's free tier proved too rate-limited to serve even a single request in practice. This is explicitly interim: a paid Claude-backed adapter is the intended next step, swappable in behind the same port with no other pipeline changes. `StubEmbeddingProviderAdapter` (ADR 0018) still backs the role-gate similarity check — Anthropic has no embeddings endpoint and Voyage AI (its recommended partner) isn't free, so that stays stubbed with no tracked follow-up yet. `StubScoringProviderAdapter` (ADR 0017) is unbound but left in place as historical record.
 
 **Monorepo structure:**
 
@@ -94,10 +94,15 @@ REDIS_URL=redis://redis:6379
 SCORING_CANDIDATE_LIMIT=50
 SCORING_DECAY_DAYS=14
 ROLE_SIMILARITY_THRESHOLD=0.25
-SCORING_BATCH_SIZE=10
+SCORING_BATCH_SIZE=50
+
+# ScoringProviderPort adapter (ADR 0020) — interim free provider
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=minimax/minimax-m3:free
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 ```
 
-`apps/back/src/config.ts` (Zod-validated) is the source of truth for what the backend requires at boot. When a required variable is missing or invalid, the app must log a clear error naming the variable and exit with code 1. `GEMINI_API_KEY` will join this list once issue #21 (real scoring provider) lands — check `config.ts` rather than trusting this file if the two ever disagree.
+`apps/back/src/config.ts` (Zod-validated) is the source of truth for what the backend requires at boot. When a required variable is missing or invalid, the app must log a clear error naming the variable and exit with code 1.
 
 ## Coding conventions
 
@@ -155,4 +160,4 @@ SCORING_BATCH_SIZE=10
 | Reintroducing a persisted profile/score model or a public fetch-trigger route | Superseded by ADR 0016 — build `/api/jobs`, `/api/runs` instead; the fetch pool refresh is cron-only         |
 | Running `npm install` or committing a `package-lock.json`                     | This is a Yarn workspaces monorepo — use `yarn install` and respect `yarn.lock`                             |
 | Adding an HTTP route to trigger the job pool refresh                          | The refresh is cron-only, wired in `bootstrap.ts` via `node-cron` — no route calls the connectors           |
-| Treating stub scoring/embedding output as real match reasoning                | Both `ScoringProviderPort` and `EmbeddingProviderPort` are stubbed (ADR 0017/0018) until issue #21 lands     |
+| Treating role-gate embedding output as real semantic similarity               | `EmbeddingProviderPort` is still stubbed (ADR 0018) — no tracked follow-up yet; `ScoringProviderPort` is real (ADR 0020) |
