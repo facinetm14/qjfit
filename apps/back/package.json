@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "run-jobs": "tsx src/run-jobs-cli.ts",
+    "reset-rate-limit": "tsx src/reset-rate-limit-cli.ts",
     "test": "jest --runInBand",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",

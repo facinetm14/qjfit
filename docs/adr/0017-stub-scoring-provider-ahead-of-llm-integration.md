@@ -1,7 +1,11 @@
 # ADR 0017: Stub the LLM Scoring Step to Unblock the Results UI
 
 ## Status
-Accepted
+Accepted. The stub-to-real swap this ADR anticipated (see "Consequences"
+and the Amendment below) has happened — `ScoringProviderPort` is now bound
+to a real adapter per [ADR 0020](0020-openrouter-free-tier-scoring-provider.md).
+Left unedited below as historical record of the stub's original shape and
+rationale.
 
 ## Date
 2026-07-24
