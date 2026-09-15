@@ -8,6 +8,7 @@ import {
 } from "@cv/domain/cv-upload.entity.js";
 import { UnsupportedCvFileTypeError } from "@cv/domain/errors/unsupported-cv-file-type.error.js";
 import { CvFileTooLargeError } from "@cv/domain/errors/cv-file-too-large.error.js";
+import { CvTitleSignalMissingError } from "@cv/domain/errors/cv-title-signal-missing.error.js";
 import { MatchRateLimitExceededError } from "@rate-limiting/domain/errors/match-rate-limit-exceeded.error.js";
 
 export interface MatchControllerDependencies {
@@ -88,7 +89,8 @@ function matchErrorHandler(
 ): void {
   if (
     error instanceof UnsupportedCvFileTypeError ||
-    error instanceof CvFileTooLargeError
+    error instanceof CvFileTooLargeError ||
+    error instanceof CvTitleSignalMissingError
   ) {
     res.status(400).json({ error: error.message });
     return;

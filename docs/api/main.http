@@ -9,6 +9,8 @@ GET {{baseUrl}}/health
 # request count for today: { ticketId, remaining }. Rate-limited to 2
 # requests/IP/day (429 with a resetAt timestamp once exceeded); parses the
 # CV in memory and never persists it — see ADR 0016 §2, §4.
+# 400 if the CV states neither a recognizable job title nor any tech-stack
+# keyword (issue #24) — there is no signal to search/score against.
 POST {{baseUrl}}/api/match
 Content-Type: multipart/form-data; boundary=----boundary
 

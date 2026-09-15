@@ -18,6 +18,7 @@ import type {
 import { CV_MAX_FILE_SIZE_BYTES } from "@cv/domain/cv-upload.entity.js";
 import { UnsupportedCvFileTypeError } from "@cv/domain/errors/unsupported-cv-file-type.error.js";
 import { CvFileTooLargeError } from "@cv/domain/errors/cv-file-too-large.error.js";
+import { CvTitleSignalMissingError } from "@cv/domain/errors/cv-title-signal-missing.error.js";
 import { MatchRateLimitExceededError } from "@rate-limiting/domain/errors/match-rate-limit-exceeded.error.js";
 
 class FakeRateLimiter implements RateLimiterPort {
@@ -333,6 +334,29 @@ describe("CreateMatchRequestUseCase", () => {
     ).rejects.toThrow(UnsupportedCvFileTypeError);
 
     expect(rateLimiter.calls).toHaveLength(0);
+  });
+
+  it("rejects a CV with no title phrase and no tech-stack keywords, without creating a ticket", async () => {
+    const rateLimiter = new FakeRateLimiter(allowedDecision());
+    const matchTicketStore = new FakeMatchTicketStore();
+    const useCase = new CreateMatchRequestUseCase(
+      rateLimiter,
+      new FakeCvTextExtractor("Lorem ipsum dolor sit amet."),
+      matchTicketStore,
+      new FakeJobsRepository(),
+      new FakeScoreMatchCandidates(),
+      new FakeLogger(),
+    );
+
+    await expect(
+      useCase.execute({
+        cvFile: { buffer: Buffer.from("cv"), mimeType: "application/pdf" },
+        ip: "203.0.113.5",
+        now: new Date("2026-07-24T10:00:00.000Z"),
+      }),
+    ).rejects.toThrow(CvTitleSignalMissingError);
+
+    expect(matchTicketStore.tickets.size).toBe(0);
   });
 
   it("throws when the daily rate limit is exceeded, without creating a ticket", async () => {

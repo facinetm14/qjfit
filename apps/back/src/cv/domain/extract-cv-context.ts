@@ -36,45 +36,99 @@ const TECH_STACK_KEYWORDS = [
   "PHP",
 ] as const;
 
-const ROLE_KEYWORDS = [
-  "Full Stack Developer",
-  "Backend Developer",
-  "Frontend Developer",
-  "Backend Engineer",
-  "Frontend Engineer",
-  "Software Engineer",
-  "Data Scientist",
-  "Data Engineer",
-  "DevOps Engineer",
-  "Product Manager",
-  "Mobile Developer",
-  "QA Engineer",
+// Broadened free-text role-noun matching (issue #24), replacing the former
+// fixed 12-label English enum above: this returns the literal matched phrase
+// from the CV text, not a normalized label, so the output tracks whatever
+// real-world spelling/wording the CV used (EN or FR) rather than collapsing
+// distinct titles ("Senior Backend Engineer", "Lead Backend Engineer") into
+// one canonical string. A qualifier (seniority/specialty word) may appear
+// before and/or after the role noun; up to two leading qualifiers are
+// tolerated ("Senior Full Stack Developer") since a single one is common but
+// not universal. Matching genuine title synonyms beyond this heuristic is
+// the real LLM scoring step's job (PRD §3.4 step 3), not this deterministic
+// pre-filter.
+const QUALIFIER_FRAGMENTS = [
+  "senior",
+  "junior",
+  "principal",
+  "staff",
+  "lead",
+  "full[\\s-]?stack",
+  "front[\\s-]?end",
+  "back[\\s-]?end",
+  "mobile",
+  "dev[\\s-]?ops",
+  "cloud",
+  "platform",
+  "data",
+  "product",
+  "technical",
+  "software",
+  "web",
+  "site\\s+reliability",
+  "sre",
+  "qa",
+  "security",
+  "embedded",
+  "confirm[ée]e?",
+  "d[ée]butant(?:e)?",
+  "donn[ée]es",
+  "logiciel",
+  "produit",
+  "technique",
+  "s[ée]curit[ée]",
+  "qualit[ée]",
+  "infrastructure",
+  "r[ée]seau",
+  "syst[èe]mes?",
 ] as const;
 
-// A literal `\bFull Stack Developer\b` match misses common real-world
-// spellings ("Fullstack Developer", "Full-Stack Developer") and the French
-// "développeur"/"ingénieur" wording of the same compound roles. These
-// patterns tolerate that spacing/hyphenation and EN/FR wording without
-// attempting full synonym coverage — matching genuine title synonyms beyond
-// this is the real LLM scoring step's job (PRD §3.4 step 3), not this
-// deterministic heuristic.
-const ROLE_PATTERNS: ReadonlyArray<{
-  readonly label: (typeof ROLE_KEYWORDS)[number];
-  readonly pattern: RegExp;
-}> = [
-  { label: "Full Stack Developer", pattern: /\bfull[\s-]?stack\s+(?:develop(?:er|eur|euse)|engineer|ingénieur)\b/i },
-  { label: "Backend Developer", pattern: /\bback[\s-]?end\s+develop(?:er|eur|euse)\b/i },
-  { label: "Frontend Developer", pattern: /\bfront[\s-]?end\s+develop(?:er|eur|euse)\b/i },
-  { label: "Backend Engineer", pattern: /\bback[\s-]?end\s+(?:engineer|ingénieur)\b/i },
-  { label: "Frontend Engineer", pattern: /\bfront[\s-]?end\s+(?:engineer|ingénieur)\b/i },
-  { label: "Software Engineer", pattern: /\b(?:software\s+engineer|ingénieur\s+logiciel)\b/i },
-  { label: "Data Scientist", pattern: /\bdata\s+scientist\b/i },
-  { label: "Data Engineer", pattern: /\bdata\s+engineer\b/i },
-  { label: "DevOps Engineer", pattern: /\bdev[\s-]?ops(?:\s+engineer)?\b/i },
-  { label: "Product Manager", pattern: /\b(?:product\s+manager|product\s+owner|chef\s+de\s+produit)\b/i },
-  { label: "Mobile Developer", pattern: /\bmobile\s+develop(?:er|eur|euse)\b/i },
-  { label: "QA Engineer", pattern: /\bqa\s+engineer\b/i },
-];
+// French "développeur"/"développeuse" is spelled with a double "p" and an
+// accented "é" — it does not share a stem with English "developer", so both
+// spellings are matched as separate alternatives rather than one shared
+// prefix.
+const NOUN_FRAGMENTS = [
+  "develop(?:er)",
+  "d[ée]velopp(?:eur|euse)",
+  "engineers?",
+  "ing[ée]nieur(?:e)?s?",
+  "scientists?",
+  "scientifiques?",
+  "analysts?",
+  "analystes?",
+  "architects?",
+  "architectes?",
+  "designers?",
+  "concepteurs?",
+  "conceptrices?",
+  "consultants?",
+  "consultantes?",
+  "administrators?",
+  "administrateurs?",
+  "administratrices?",
+  "managers?",
+  "directors?",
+  "directeurs?",
+  "directrices?",
+  "specialists?",
+  "sp[ée]cialistes?",
+  "responsables?",
+  "owners?",
+  "chefs?\\s+de\\s+produits?",
+  "chefs?\\s+de\\s+projets?",
+  "dev[\\s-]?ops",
+] as const;
+
+const QUALIFIER_ALTERNATION = QUALIFIER_FRAGMENTS.join("|");
+const NOUN_ALTERNATION = NOUN_FRAGMENTS.join("|");
+
+// `\b` is ASCII-only and would fail a boundary check next to an accented
+// letter (see keywordRegex below) — `\p{L}\p{N}` lookarounds stay
+// Unicode-aware so this matches consistently for accented FR role nouns too.
+const TITLE_PHRASE_PATTERN = new RegExp(
+  `(?<![\\p{L}\\p{N}])(?:(?:${QUALIFIER_ALTERNATION})[\\s-]+){0,2}(?:${NOUN_ALTERNATION})(?:[\\s-]+(?:${QUALIFIER_ALTERNATION}))?(?![\\p{L}\\p{N}])`,
+  "iu",
+);
 
 // City keywords take priority over region keywords below (findFirstKeyword
 // returns the first array match) — a CV stating a specific city is more
@@ -153,8 +207,18 @@ function findFirstKeyword(
   return keywords.find((keyword) => keywordRegex(keyword).test(text)) ?? null;
 }
 
-function findRole(text: string): (typeof ROLE_KEYWORDS)[number] | null {
-  return ROLE_PATTERNS.find(({ pattern }) => pattern.test(text))?.label ?? null;
+function findExplicitTitlePhrase(text: string): string | null {
+  return TITLE_PHRASE_PATTERN.exec(text)?.[0] ?? null;
+}
+
+// Low-confidence fallback (issue #24): when the CV states no recognizable
+// title phrase but does list tech-stack keywords, synthesize a search term
+// from the first-detected one rather than leaving targetRole null — the
+// alternative is hard-failing the match request even though the CV carries
+// a usable (if weaker) signal for what role the visitor wants.
+function synthesizeFallbackTitle(techStack: readonly string[]): string | null {
+  const [primary] = techStack;
+  return primary ? `${primary} Developer` : null;
 }
 
 function extractSeniority(text: string): CvSeniorityRange | null {
@@ -199,9 +263,12 @@ function extractExcludedKeywords(text: string): string[] {
 }
 
 export function extractCvContext(text: string): CvContext {
+  const techStack = findKeywordMatches(text, TECH_STACK_KEYWORDS);
+  const targetRole = findExplicitTitlePhrase(text) ?? synthesizeFallbackTitle(techStack);
+
   return {
-    targetRole: findRole(text),
-    techStack: findKeywordMatches(text, TECH_STACK_KEYWORDS),
+    targetRole,
+    techStack,
     seniority: extractSeniority(text),
     location: findFirstKeyword(text, LOCATION_KEYWORDS),
     excludedKeywords: extractExcludedKeywords(text),
