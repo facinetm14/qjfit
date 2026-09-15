@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/main.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/main.js",
-    "run-jobs": "tsx src/run-jobs-cli.ts",
-    "reset-rate-limit": "tsx src/reset-rate-limit-cli.ts",
+    "dev": "tsx watch src/composition-root/main.ts",
+    "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
+    "start": "node dist/composition-root/main.js",
+    "run-jobs": "tsx src/composition-root/run-jobs-cli.ts",
+    "reset-rate-limit": "tsx src/composition-root/reset-rate-limit-cli.ts",
     "test": "jest --runInBand",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
@@ -46,6 +46,7 @@
     "prisma": "^5.17.0",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.4",
+    "tsc-alias": "^1.9.5",
     "tsx": "^4.16.2",
     "typescript": "^5.5.4"
   }

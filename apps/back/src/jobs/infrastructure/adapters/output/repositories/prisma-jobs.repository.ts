@@ -1,0 +1,66 @@
+import { inject, injectable } from "inversify";
+import { Prisma, type PrismaClient } from "@prisma/client";
+import type { Job } from "@jobs/domain/job.entity.js";
+import type { NormalizedJobInput } from "@jobs/domain/normalized-job.entity.js";
+import type { JobsRepositoryPort } from "@jobs/application/ports/jobs-repository.port.js";
+import { toDomainJob } from "./job.mapper.js";
+import { TYPES } from "@composition-root/container/types.js";
+
+function isUniqueConstraintViolation(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
+  );
+}
+
+@injectable()
+export class PrismaJobsRepository implements JobsRepositoryPort {
+  constructor(@inject(TYPES.PrismaClient) private readonly prisma: PrismaClient) {}
+
+  async createIfNotExists(input: NormalizedJobInput): Promise<Job | null> {
+    const existing = await this.prisma.job.findFirst({
+      where: {
+        OR: [
+          { dedupKey: input.dedupKey },
+          ...(input.sourceJobId
+            ? [{ source: input.source, sourceJobId: input.sourceJobId }]
+            : []),
+        ],
+      },
+    });
+
+    if (existing) {
+      return null;
+    }
+
+    try {
+      const created = await this.prisma.job.create({
+        data: {
+          title: input.title,
+          company: input.company,
+          location: input.location,
+          contractType: input.contractType,
+          remotePolicy: input.remotePolicy,
+          description: input.description,
+          url: input.url,
+          source: input.source,
+          sourceJobId: input.sourceJobId,
+          dedupKey: input.dedupKey,
+          fetchedAt: input.fetchedAt,
+        },
+      });
+
+      return toDomainJob(created);
+    } catch (error) {
+      if (isUniqueConstraintViolation(error)) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async findMany(): Promise<readonly Job[]> {
+    const records = await this.prisma.job.findMany();
+    return records.map(toDomainJob);
+  }
+}

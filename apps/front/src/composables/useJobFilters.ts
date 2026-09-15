@@ -1,10 +1,7 @@
 import { computed, ref, type Ref } from 'vue';
 import { filterAndSortJobs, type SortOrder } from '../utils/job-filters.js';
+import { ALL_CONTRACTS, ALL_REMOTE, ALL_SOURCES } from '../types/job.js';
 import type { ContractType, JobSource, MatchedJob, RemotePolicy } from '../types/job.js';
-
-const ALL_SOURCES: JobSource[] = ['france-travail', 'wttj-rss'];
-const ALL_CONTRACTS: ContractType[] = ['CDI', 'CDD', 'Freelance', 'Internship', 'Apprenticeship', 'Other'];
-const ALL_REMOTE: RemotePolicy[] = ['Full', 'Hybrid', 'OnSite'];
 
 function toggled<T>(list: readonly T[], value: T): T[] {
   return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];

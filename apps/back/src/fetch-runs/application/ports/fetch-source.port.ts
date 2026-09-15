@@ -1,0 +1,11 @@
+import type { RawJob } from "@shared/domain/raw-job.entity.js";
+
+export interface FetchSourceResult {
+  readonly jobs: readonly RawJob[];
+}
+
+export interface FetchSourcePort {
+  readonly source: string;
+  fetch(runId: string): Promise<FetchSourceResult>;
+}
+

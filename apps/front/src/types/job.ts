@@ -1,5 +1,5 @@
-// Source/contract/remote unions mirror apps/back/src/domain/jobs/job.entity.ts
-// and domain/shared/contract-type.ts — the two apps don't share a types
+// Source/contract/remote unions mirror apps/back/src/jobs/domain/job.entity.ts
+// and shared/domain/contract-type.ts — the two apps don't share a types
 // package, so these are kept in sync by hand.
 export type JobSource = "france-travail" | "wttj-rss";
 export type ContractType =
@@ -11,6 +11,17 @@ export type ContractType =
   | "Other";
 export type RemotePolicy = "Full" | "Hybrid" | "OnSite" | "Unknown";
 export type ScoreTier = "high" | "mid" | "low";
+
+export const ALL_SOURCES: readonly JobSource[] = ["france-travail", "wttj-rss"];
+export const ALL_CONTRACTS: readonly ContractType[] = [
+  "CDI",
+  "CDD",
+  "Freelance",
+  "Internship",
+  "Apprenticeship",
+  "Other",
+];
+export const ALL_REMOTE: readonly RemotePolicy[] = ["Full", "Hybrid", "OnSite"];
 
 export interface MatchedJob {
   readonly id: string;
@@ -64,8 +75,3 @@ export function scoreTier(score: number): ScoreTier {
   if (score >= 50) return "mid";
   return "low";
 }
-
-export const ClientEvents = {
-  CV_UPLOADED: "cv-uploaded",
-  CV_SUBMITTED: "cv-submitted",
-} as const;
