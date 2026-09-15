@@ -36,6 +36,21 @@
       </div>
     </div>
 
+    <div class="filter-group" data-tab="posted">
+      <div class="chip-row">
+        <button
+          v-for="value in recencyOptions"
+          :key="value"
+          type="button"
+          class="chip-toggle"
+          :aria-pressed="recencyWindow === value"
+          @click="$emit('update:recencyWindow', value)"
+        >
+          {{ recencyWindowLabel(value) }}
+        </button>
+      </div>
+    </div>
+
     <div class="filter-group" data-tab="remote">
       <div class="chip-row">
         <button
@@ -54,25 +69,36 @@
 </template>
 
 <script setup lang="ts">
-import type { ContractType, JobSource, RemotePolicy } from '../types/job.js';
-import { ALL_CONTRACTS, ALL_REMOTE, ALL_SOURCES, remotePolicyLabel, sourceLabel } from '../types/job.js';
+import type { ContractType, JobSource, RecencyWindow, RemotePolicy } from '../types/job.js';
+import {
+  ALL_CONTRACTS,
+  ALL_RECENCY_WINDOWS,
+  ALL_REMOTE,
+  ALL_SOURCES,
+  recencyWindowLabel,
+  remotePolicyLabel,
+  sourceLabel
+} from '../types/job.js';
 
 defineProps<{
   minScore: number;
   sources: readonly JobSource[];
   contracts: readonly ContractType[];
   remotePolicies: readonly RemotePolicy[];
+  recencyWindow: RecencyWindow;
 }>();
 defineEmits<{
   (e: 'update:minScore', value: number): void;
   (e: 'toggle-source', value: JobSource): void;
   (e: 'toggle-contract', value: ContractType): void;
   (e: 'toggle-remote', value: RemotePolicy): void;
+  (e: 'update:recencyWindow', value: RecencyWindow): void;
 }>();
 
 const sourceOptions = ALL_SOURCES;
 const contractOptions = ALL_CONTRACTS;
 const remoteOptions = ALL_REMOTE;
+const recencyOptions = ALL_RECENCY_WINDOWS;
 </script>
 
 <style scoped>

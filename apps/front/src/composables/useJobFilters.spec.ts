@@ -60,4 +60,21 @@ describe('useJobFilters', () => {
 
     expect(filteredJobs.value.map((j) => j.id)).toEqual(['1']);
   });
+
+  it('defaults the recency window to "all" so every job is included', () => {
+    const jobs = ref<MatchedJob[]>([buildJob({ id: '1', daysAgo: 0 }), buildJob({ id: '2', daysAgo: 30 })]);
+    const { filteredJobs } = useJobFilters(jobs);
+
+    expect(filteredJobs.value.map((j) => j.id)).toEqual(['1', '2']);
+  });
+
+  it('setRecencyWindow narrows results reactively without touching other filters', () => {
+    const jobs = ref<MatchedJob[]>([buildJob({ id: '1', daysAgo: 1 }), buildJob({ id: '2', daysAgo: 10 })]);
+    const { filteredJobs, recencyWindow, setRecencyWindow } = useJobFilters(jobs);
+
+    setRecencyWindow('3d');
+
+    expect(recencyWindow.value).toBe('3d');
+    expect(filteredJobs.value.map((j) => j.id)).toEqual(['1']);
+  });
 });

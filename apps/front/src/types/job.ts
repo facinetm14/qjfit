@@ -11,6 +11,10 @@ export type ContractType =
   | "Other";
 export type RemotePolicy = "Full" | "Hybrid" | "OnSite" | "Unknown";
 export type ScoreTier = "high" | "mid" | "low";
+// A client-side-only post-filter (issue #27) — "all" (default, no filter) plus
+// the four windows the PRD names. Computed from each job's existing
+// `daysAgo` (see map-scored-job.ts), never triggers a new fetch.
+export type RecencyWindow = "all" | "24h" | "3d" | "7d" | "14d";
 
 export const ALL_SOURCES: readonly JobSource[] = ["france-travail", "wttj-rss"];
 export const ALL_CONTRACTS: readonly ContractType[] = [
@@ -22,6 +26,7 @@ export const ALL_CONTRACTS: readonly ContractType[] = [
   "Other",
 ];
 export const ALL_REMOTE: readonly RemotePolicy[] = ["Full", "Hybrid", "OnSite"];
+export const ALL_RECENCY_WINDOWS: readonly RecencyWindow[] = ["all", "24h", "3d", "7d", "14d"];
 
 export interface MatchedJob {
   readonly id: string;
@@ -58,6 +63,18 @@ const REMOTE_POLICY_LABELS: Record<RemotePolicy, string> = {
 
 export function remotePolicyLabel(remote: RemotePolicy): string {
   return REMOTE_POLICY_LABELS[remote];
+}
+
+const RECENCY_WINDOW_LABELS: Record<RecencyWindow, string> = {
+  all: "Any time",
+  "24h": "Past 24 hours",
+  "3d": "Past 3 days",
+  "7d": "Past 7 days",
+  "14d": "Past 14 days",
+};
+
+export function recencyWindowLabel(window: RecencyWindow): string {
+  return RECENCY_WINDOW_LABELS[window];
 }
 
 export interface PoolStats {
