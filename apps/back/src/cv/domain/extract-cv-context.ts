@@ -264,10 +264,12 @@ function extractExcludedKeywords(text: string): string[] {
 
 export function extractCvContext(text: string): CvContext {
   const techStack = findKeywordMatches(text, TECH_STACK_KEYWORDS);
-  const targetRole = findExplicitTitlePhrase(text) ?? synthesizeFallbackTitle(techStack);
+  const explicitTitle = findExplicitTitlePhrase(text);
+  const targetRole = explicitTitle ?? synthesizeFallbackTitle(techStack);
 
   return {
     targetRole,
+    hasExplicitTargetRole: explicitTitle !== null,
     techStack,
     seniority: extractSeniority(text),
     location: findFirstKeyword(text, LOCATION_KEYWORDS),

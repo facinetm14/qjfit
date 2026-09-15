@@ -13,6 +13,7 @@ function delay(ms: number): Promise<void> {
 function buildCvContext(overrides: Partial<CvContext> = {}): CvContext {
   return {
     targetRole: null,
+    hasExplicitTargetRole: false,
     techStack: ["TypeScript"],
     seniority: null,
     location: null,

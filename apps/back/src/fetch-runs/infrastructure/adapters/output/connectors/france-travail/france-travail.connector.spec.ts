@@ -143,6 +143,33 @@ describe("FranceTravailConnector", () => {
     );
   });
 
+  it("treats a 204 response as zero results instead of crashing on an empty body", async () => {
+    // Verified against the real API: a search matching zero offers responds
+    // 204 No Content with no body — confirmed by a reference implementation
+    // (github.com/VOTRESITEPRO/veille-emploi, veille.py:207-210: "204 =
+    // aucun resultat, ce n'est pas une erreur") that special-cases
+    // `status === 204` before ever calling `.json()`. Calling `.json()` on
+    // an empty body throws "Unexpected end of JSON input" — reproduced live
+    // against the real France Travail API for a narrow query (title "Full
+    // Stack Developer" + Nantes + senior + CDD) that matched nothing.
+    const fetcher = async () => ({
+      ok: true,
+      status: 204,
+      headers: { get: () => null },
+      json: async () => {
+        throw new SyntaxError("Unexpected end of JSON input");
+      },
+    });
+    const connector = new FranceTravailConnector(
+      { baseUrl: "https://api.test", pageSize: 150, fetcher },
+      buildAuthClient(),
+    );
+
+    const result = await connector.fetch("run-1");
+
+    expect(result.jobs).toEqual([]);
+  });
+
   it("sends the auth client's bearer token on the search request", async () => {
     const payload = loadFixture("success-minimal.json");
     const calls: Array<{ url: string; init: unknown }> = [];

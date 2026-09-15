@@ -101,3 +101,33 @@ unchanged from ADR 0019 in every other respect.
 - `EmbeddingProviderPort` (ADR 0018) remains stubbed; the role gate's
   semantic-similarity fallback is still fake. Real embeddings remain an
   unscoped future item.
+
+## Update — 2026-09-15
+
+`minimax/minimax-m3:free` was discontinued from OpenRouter's free tier
+(confirmed live: `chat/completions` now 404s with `"This model is
+unavailable for free. The paid version is available now - use this slug
+instead: minimax/minimax-m3"`) — this ADR's original bet on it (large
+context over `structured_outputs` support) is moot once the model itself
+is gone, and the account has no credit for the paid slug (402).
+
+`OPENROUTER_MODEL` is switched to **`nvidia/nemotron-3-super-120b-a12b:free`**
+— one of the two `structured_outputs`-capable alternatives this ADR
+already evaluated and rejected only in favor of minimax's larger context.
+Verified live against the real system prompt/schema (3 separate calls,
+all schema-valid, sensible scores) before switching; re-checked against
+OpenRouter's models API that it's still `:free` as of this date. Its
+262144-token context still comfortably fits a full
+`SCORING_CANDIDATE_LIMIT=50` batch (well under a hundred thousand
+characters of job text at `MAX_DESCRIPTION_CHARS=2000`/job), so
+`SCORING_BATCH_SIZE=50` stays unchanged.
+
+This adapter still doesn't opt into `structured_outputs` even though the
+new model supports it — switching only the model, not the request shape,
+was the minimal fix for the immediate outage. Enabling it (dropping
+reliance on prompt-only JSON correctness) is a reasonable small follow-up,
+not done here.
+
+Everything else in this ADR (the port, the adapter shape, the interim
+framing, the Claude-backed adapter as the intended next step) is
+unchanged.

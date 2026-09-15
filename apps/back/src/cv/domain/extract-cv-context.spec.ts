@@ -17,6 +17,7 @@ describe("extractCvContext", () => {
     const context = extractCvContext(text);
 
     expect(context.targetRole).toBe("Backend Developer");
+    expect(context.hasExplicitTargetRole).toBe(true);
     expect(context.techStack).toEqual(
       expect.arrayContaining(["TypeScript", "Node.js", "PostgreSQL", "Docker", "Kubernetes"]),
     );
@@ -39,6 +40,7 @@ describe("extractCvContext", () => {
     const context = extractCvContext(text);
 
     expect(context.targetRole).toBe("Senior Software Engineer");
+    expect(context.hasExplicitTargetRole).toBe(true);
     expect(context.seniority).toEqual({ minYears: 8, maxYears: 10 });
     expect(context.contractTypes).toEqual(["Freelance"]);
     expect(context.location).toBe("Paris");
@@ -52,6 +54,7 @@ describe("extractCvContext", () => {
 
     expect(context).toEqual({
       targetRole: null,
+      hasExplicitTargetRole: false,
       techStack: [],
       seniority: null,
       location: null,
@@ -98,6 +101,7 @@ describe("extractCvContext", () => {
     ])("returns the literal matched phrase %s verbatim, not a normalized label", (rawTitle) => {
       const context = extractCvContext(rawTitle);
       expect(context.targetRole).toBe(rawTitle);
+      expect(context.hasExplicitTargetRole).toBe(true);
     });
 
     it("returns only the matched phrase, not surrounding CV text", () => {
@@ -105,6 +109,7 @@ describe("extractCvContext", () => {
         "Curriculum Vitae\n\nSenior Backend Engineer\n\n5 years of experience.",
       );
       expect(context.targetRole).toBe("Senior Backend Engineer");
+      expect(context.hasExplicitTargetRole).toBe(true);
     });
   });
 
@@ -115,6 +120,7 @@ describe("extractCvContext", () => {
       );
 
       expect(context.targetRole).toBe("Python Developer");
+      expect(context.hasExplicitTargetRole).toBe(false);
       expect(context.techStack).toEqual(
         expect.arrayContaining(["Python", "Django", "PostgreSQL"]),
       );
@@ -125,6 +131,7 @@ describe("extractCvContext", () => {
     it("returns a null target role when neither a title phrase nor a tech-stack keyword is present", () => {
       const context = extractCvContext("Lorem ipsum dolor sit amet.");
       expect(context.targetRole).toBeNull();
+      expect(context.hasExplicitTargetRole).toBe(false);
     });
   });
 });
