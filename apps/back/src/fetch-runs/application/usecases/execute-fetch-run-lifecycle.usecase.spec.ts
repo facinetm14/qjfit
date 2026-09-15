@@ -27,6 +27,7 @@ class FakeFetchRunsRepository implements FetchRunsRepositoryPort {
     this.run = {
       id: "run-1",
       status: "pending",
+      querySignature: null,
       startedAt: null,
       endedAt: null,
       createdAt: now,
@@ -34,8 +35,13 @@ class FakeFetchRunsRepository implements FetchRunsRepositoryPort {
     };
   }
 
-  async createPending(): Promise<FetchRun> {
+  async createPending(querySignature: string | null): Promise<FetchRun> {
+    this.run = { ...this.run, querySignature };
     return this.run;
+  }
+
+  async findMostRecentCompleted(): Promise<FetchRun | null> {
+    return null;
   }
 
   async markRunning(runId: string, startedAt: Date): Promise<FetchRun> {
@@ -192,6 +198,28 @@ describe("ExecuteFetchRunLifecycleUseCase (integration)", () => {
       runId: fetchRunsRepository.run.id,
       source: "failing-source",
     });
+  });
+
+  it("records the query signature on the run and returns the completed run", async () => {
+    const fetchRunsRepository = new FakeFetchRunsRepository();
+    const fetchLogsRepository = new FakeFetchLogsRepository();
+    const jobsRepository = new FakeJobsRepository();
+    const logger = new FakeLogger();
+    const normalizeAndPersistJobs = new NormalizeAndPersistJobsUseCase(
+      jobsRepository,
+    );
+    const lifecycle = new ExecuteFetchRunLifecycleUseCase(
+      fetchRunsRepository,
+      fetchLogsRepository,
+      [new SucceedingFetchSource()],
+      normalizeAndPersistJobs,
+      logger,
+    );
+
+    const run = await lifecycle.execute("title:backend-developer");
+
+    expect(run.status).toBe("completed");
+    expect(run.querySignature).toBe("title:backend-developer");
   });
 
   it("marks the run as failed, instead of completed, when every source fails", async () => {

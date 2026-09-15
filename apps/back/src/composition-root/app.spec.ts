@@ -21,6 +21,10 @@ import {
   type ScoreMatchCandidatesPort,
 } from "@scoring/application/usecases/score-match-candidates.usecase.js";
 import type { ScoringProviderPort } from "@scoring/application/ports/scoring-provider.port.js";
+import type {
+  EnsureFreshJobPoolForSignatureInput,
+  EnsureFreshJobPoolForSignaturePort,
+} from "@fetch-runs/application/usecases/ensure-fresh-job-pool-for-signature.usecase.js";
 import { StubEmbeddingProviderAdapter } from "@scoring/infrastructure/adapters/output/embedding/stub-embedding-provider.adapter.js";
 import { MAX_MATCH_REQUESTS_PER_DAY } from "@rate-limiting/domain/rate-limit-policy.js";
 
@@ -117,6 +121,16 @@ class FakeLogger implements LoggerPort {
   error(): void {}
 }
 
+class FakeEnsureFreshJobPoolForSignature
+  implements EnsureFreshJobPoolForSignaturePort
+{
+  calls: EnsureFreshJobPoolForSignatureInput[] = [];
+
+  async execute(input: EnsureFreshJobPoolForSignatureInput): Promise<void> {
+    this.calls.push(input);
+  }
+}
+
 function buildJob(overrides: Partial<Job> = {}): Job {
   return {
     id: "job-1",
@@ -155,6 +169,7 @@ function buildDeps(overrides: {
       new FakeCvTextExtractor(),
       matchTicketStore,
       jobsRepository,
+      new FakeEnsureFreshJobPoolForSignature(),
       overrides.scoreMatchCandidates ?? new FakeScoreMatchCandidates(),
       new FakeLogger(),
     ),

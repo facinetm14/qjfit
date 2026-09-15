@@ -15,6 +15,8 @@ import { buildAnonymizedMarkdownCv } from "@cv/domain/convert-cv-to-markdown.js"
 import type { CvContext } from "@cv/domain/cv-context.entity.js";
 import { MatchRateLimitExceededError } from "@rate-limiting/domain/errors/match-rate-limit-exceeded.error.js";
 import type { ScoreMatchCandidatesPort } from "@scoring/application/usecases/score-match-candidates.usecase.js";
+import { buildQuerySignature } from "@fetch-runs/domain/query-signature.js";
+import type { EnsureFreshJobPoolForSignaturePort } from "@fetch-runs/application/usecases/ensure-fresh-job-pool-for-signature.usecase.js";
 import { PORT_TYPES } from "@shared/application/tokens.js";
 
 export interface CreateMatchRequestInput {
@@ -46,6 +48,8 @@ export class CreateMatchRequestUseCase {
     private readonly matchTicketStore: MatchTicketStorePort,
     @inject(PORT_TYPES.JobsRepository)
     private readonly jobsRepository: JobsRepositoryPort,
+    @inject(PORT_TYPES.EnsureFreshJobPoolForSignatureUseCase)
+    private readonly ensureFreshJobPoolForSignature: EnsureFreshJobPoolForSignaturePort,
     @inject(PORT_TYPES.ScoreMatchCandidatesUseCase)
     private readonly scoreMatchCandidatesUseCase: ScoreMatchCandidatesPort,
     @inject(PORT_TYPES.Logger)
@@ -69,14 +73,17 @@ export class CreateMatchRequestUseCase {
     const cvContext = extractCvContext(text);
     assertCvHasTitleSignal(cvContext);
     const cvMarkdown = buildAnonymizedMarkdownCv(text);
+    const querySignature = buildQuerySignature(cvContext);
 
     const ticketId = randomUUID();
     await this.matchTicketStore.createPending(ticketId, input.now);
 
     queueMicrotask(() => {
-      this.runMatchPipeline(ticketId, cvContext, cvMarkdown, input.now).catch((error) => {
-        this.logger.error({ ticketId, err: error }, "Match pipeline failed");
-      });
+      this.runMatchPipeline(ticketId, cvContext, cvMarkdown, querySignature, input.now).catch(
+        (error) => {
+          this.logger.error({ ticketId, err: error }, "Match pipeline failed");
+        },
+      );
     });
 
     return { ticketId, remaining: decision.remaining };
@@ -86,9 +93,11 @@ export class CreateMatchRequestUseCase {
     ticketId: string,
     cvContext: CvContext,
     cvMarkdown: string,
+    querySignature: string,
     now: Date,
   ): Promise<void> {
     try {
+      await this.ensureFreshJobPoolForSignature.execute({ querySignature, now });
       const jobs = await this.jobsRepository.findMany();
       const results = await this.scoreMatchCandidatesUseCase.execute({
         cvContext,

@@ -6,6 +6,7 @@ import { bindConnectors } from "./bindings/bind-connectors.js";
 import { bindRepositories } from "./bindings/bind-repositories.js";
 import { bindUsecases } from "./bindings/bind-usecases.js";
 import { bindFetchRunScheduler } from "./bindings/bind-fetch-run-scheduler.js";
+import { bindFetchOrchestration } from "./bindings/bind-fetch-orchestration.js";
 import { bindCvParsing } from "./bindings/bind-cv-parsing.js";
 import { bindRateLimiting } from "./bindings/bind-rate-limiting.js";
 import { bindMatchTicketStore } from "./bindings/bind-match-ticket-store.js";
@@ -21,6 +22,7 @@ export function buildContainer(config: AppConfig, logger: Logger): Container {
   bindRateLimiting(container);
   bindMatchTicketStore(container);
   bindScoring(container, config);
+  bindFetchOrchestration(container);
   bindUsecases(container);
   bindFetchRunScheduler(container);
 
