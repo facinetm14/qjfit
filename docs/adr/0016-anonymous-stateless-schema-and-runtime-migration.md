@@ -148,3 +148,14 @@ real (relevance pre-filter, recency tiebreak, bounded-concurrency scoring
 orchestration, final ranking) — only the LLM call itself is stubbed. See ADR
 0017 for that decision; the completed ticket shape is `{ results: ScoredJob[] }`,
 not the raw job list this ADR originally described.
+
+## Follow-up: §3 superseded by ADR 0021
+
+§3 ("Scheduled job pool refresh") — the cron-driven, fully-traffic-decoupled fetch mechanism — is
+superseded by [ADR 0021](./0021-cv-scoped-on-demand-job-fetching.md). The unscoped fetch §3
+describes (no keyword/ROME-code filtering at all) turned out to be the root cause of the matching
+pipeline returning near-empty results: of 1292 jobs pulled into the pool, only 1.2% were even
+loosely tech-related. ADR 0021 ties fetching to a visitor's match request, scoped by that CV, with a
+per-query-signature freshness cache and lock to bound quota usage without a timer. Everything else
+in this ADR — the schema migration, §2's route contract, §4's Redis rate limiter and match-ticket
+store — is unaffected and remains accurate.

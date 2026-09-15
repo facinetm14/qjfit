@@ -20,4 +20,7 @@ export const TYPES = {
   PdfCvTextExtractor: Symbol.for("PdfCvTextExtractor"),
   PdfCvTextExtractorOptions: Symbol.for("PdfCvTextExtractorOptions"),
   DocxCvTextExtractor: Symbol.for("DocxCvTextExtractor"),
+  OpenRouterScoringProviderAdapterOptions: Symbol.for(
+    "OpenRouterScoringProviderAdapterOptions",
+  ),
 } as const;

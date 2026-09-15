@@ -22,6 +22,7 @@ describe('loadConfig', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
       REDIS_URL: 'redis://localhost:6379',
+      OPENROUTER_API_KEY: 'test-key',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173'
@@ -34,6 +35,7 @@ describe('loadConfig', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
       REDIS_URL: 'redis://localhost:6379',
+      OPENROUTER_API_KEY: 'test-key',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173'
@@ -46,6 +48,7 @@ describe('loadConfig', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
       REDIS_URL: 'redis://localhost:6379',
+      OPENROUTER_API_KEY: 'test-key',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173',
@@ -71,6 +74,7 @@ describe('loadConfig', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
       REDIS_URL: 'redis://localhost:6379',
+      OPENROUTER_API_KEY: 'test-key',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173'
@@ -91,6 +95,7 @@ describe('loadConfig', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
       REDIS_URL: 'redis://localhost:6379',
+      OPENROUTER_API_KEY: 'test-key',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173'
@@ -103,6 +108,7 @@ describe('loadConfig', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
       REDIS_URL: 'redis://localhost:6379',
+      OPENROUTER_API_KEY: 'test-key',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173',
@@ -128,6 +134,7 @@ describe('loadConfig', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
       REDIS_URL: 'redis://localhost:6379',
+      OPENROUTER_API_KEY: 'test-key',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173'
@@ -140,6 +147,7 @@ describe('loadConfig', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
       REDIS_URL: 'redis://localhost:6379',
+      OPENROUTER_API_KEY: 'test-key',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173'
@@ -153,6 +161,7 @@ describe('loadConfig', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
       REDIS_URL: 'redis://localhost:6379',
+      OPENROUTER_API_KEY: 'test-key',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173',
@@ -168,6 +177,7 @@ describe('loadConfig', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
       REDIS_URL: 'redis://localhost:6379',
+      OPENROUTER_API_KEY: 'test-key',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173'
@@ -180,6 +190,7 @@ describe('loadConfig', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
       REDIS_URL: 'redis://localhost:6379',
+      OPENROUTER_API_KEY: 'test-key',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173',
@@ -201,22 +212,24 @@ describe('loadConfig', () => {
     }).toThrow('Invalid environment configuration');
   });
 
-  it('defaults SCORING_BATCH_SIZE to 10 when unset', () => {
+  it('defaults SCORING_BATCH_SIZE to 50 when unset', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
       REDIS_URL: 'redis://localhost:6379',
+      OPENROUTER_API_KEY: 'test-key',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173'
     });
 
-    expect(config.SCORING_BATCH_SIZE).toBe(10);
+    expect(config.SCORING_BATCH_SIZE).toBe(50);
   });
 
   it('accepts a custom SCORING_BATCH_SIZE', () => {
     const config = loadConfig({
       DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
       REDIS_URL: 'redis://localhost:6379',
+      OPENROUTER_API_KEY: 'test-key',
       NODE_ENV: 'development',
       PORT: '3000',
       CORS_ORIGIN: 'http://localhost:5173',
@@ -236,5 +249,47 @@ describe('loadConfig', () => {
         SCORING_BATCH_SIZE: '0'
       });
     }).toThrow('Invalid environment configuration');
+  });
+
+  it('throws when OPENROUTER_API_KEY is missing', () => {
+    expect(() => {
+      loadConfig({
+        DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+        REDIS_URL: 'redis://localhost:6379',
+        NODE_ENV: 'development',
+        PORT: '3000',
+        CORS_ORIGIN: 'http://localhost:5173'
+      });
+    }).toThrow('Invalid environment configuration');
+  });
+
+  it('defaults OPENROUTER_MODEL and OPENROUTER_BASE_URL when unset', () => {
+    const config = loadConfig({
+      DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      REDIS_URL: 'redis://localhost:6379',
+      OPENROUTER_API_KEY: 'test-key',
+      NODE_ENV: 'development',
+      PORT: '3000',
+      CORS_ORIGIN: 'http://localhost:5173'
+    });
+
+    expect(config.OPENROUTER_MODEL).toBe('minimax/minimax-m3:free');
+    expect(config.OPENROUTER_BASE_URL).toBe('https://openrouter.ai/api/v1');
+  });
+
+  it('accepts a custom OPENROUTER_MODEL and OPENROUTER_BASE_URL', () => {
+    const config = loadConfig({
+      DATABASE_URL: 'postgresql://QJFit:password@db:5432/QJFit',
+      REDIS_URL: 'redis://localhost:6379',
+      OPENROUTER_API_KEY: 'test-key',
+      NODE_ENV: 'development',
+      PORT: '3000',
+      CORS_ORIGIN: 'http://localhost:5173',
+      OPENROUTER_MODEL: 'z-ai/glm-5.2:free',
+      OPENROUTER_BASE_URL: 'https://example.com/api/v1'
+    });
+
+    expect(config.OPENROUTER_MODEL).toBe('z-ai/glm-5.2:free');
+    expect(config.OPENROUTER_BASE_URL).toBe('https://example.com/api/v1');
   });
 });
