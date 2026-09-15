@@ -58,7 +58,7 @@ QJFit/
 18. **Keep API docs updated, grouped by domain/concern** (`docs/api/main.http`).
 19. **Don't reintroduce the pre-pivot surface ADR 0016 supersedes.** `profile.controller.ts`, `fetch.controller.ts`, the `Profile`/`Score` Prisma models, and `Job.status`/`JobStatus` are deleted — don't add a persisted profile, a persisted score, or a public fetch-trigger route back.
 20. **Use Yarn, not npm.** This is a Yarn workspaces monorepo (`yarn.lock`, `"packageManager": "yarn@1.22.22"`, `corepack enable` in CI and every Dockerfile). Run workspace scripts via `yarn workspace @qjfit/back <script>` / `yarn workspace @qjfit/front <script>`, or the root aliases (`yarn dev:back`, `yarn dev:front`, `yarn test`, `yarn typecheck`, `yarn lint`, each with `:back`/`:front` variants). Don't run `npm install` or commit a `package-lock.json`.
-21. **Never push.** Once you're done, commit — you're not responsible for pushing.
+21. **NEVER COMMIT OR PUSH** You're not responsible for that. just leave your changes and I'll check and commit.
 
 ---
 
