@@ -21,10 +21,12 @@
         :sources="sources"
         :contracts="contracts"
         :remote-policies="remotePolicies"
+        :recency-window="recencyWindow"
         @update:min-score="minScore = $event"
         @toggle-source="toggleSource"
         @toggle-contract="toggleContract"
         @toggle-remote="toggleRemote"
+        @update:recency-window="setRecencyWindow"
       />
 
       <div class="cards">
@@ -51,8 +53,19 @@ import type { MatchedJob } from '../types/job.js';
 const props = defineProps<{ jobs: readonly MatchedJob[]; poolTotal: number }>();
 
 const jobsRef = toRef(props, 'jobs');
-const { minScore, sources, contracts, remotePolicies, sortOrder, filteredJobs, toggleSource, toggleContract, toggleRemote } =
-  useJobFilters(jobsRef);
+const {
+  minScore,
+  sources,
+  contracts,
+  remotePolicies,
+  recencyWindow,
+  sortOrder,
+  filteredJobs,
+  toggleSource,
+  toggleContract,
+  toggleRemote,
+  setRecencyWindow
+} = useJobFilters(jobsRef);
 
 function exportCsv() {
   downloadCsv(jobsToCsv(filteredJobs.value), 'qjfit-matches.csv');
