@@ -258,6 +258,11 @@ describe("CreateMatchRequestUseCase", () => {
       {
         querySignature: "title:backend-developer|mobility:paris|contract:cdi",
         now: new Date("2026-07-24T10:00:00.000Z"),
+        query: {
+          targetRole: "Backend Developer",
+          location: "Paris",
+          contractTypes: ["CDI"],
+        },
       },
     ]);
   });

@@ -3,6 +3,7 @@ import type { FetchFreshnessPort } from "../ports/fetch-freshness.port.js";
 import type { FetchLockPort } from "../ports/fetch-lock.port.js";
 import type { ExecuteFetchRunLifecyclePort } from "./execute-fetch-run-lifecycle.usecase.js";
 import type { LoggerPort } from "@shared/application/ports/logger.port.js";
+import type { FetchSourceQuery } from "../ports/fetch-source.port.js";
 import { FETCH_FRESHNESS_WINDOW_MS } from "../../domain/fetch-freshness-policy.js";
 import { FetchFailedWithNoCacheError } from "../../domain/errors/fetch-failed-no-cache.error.js";
 import { PORT_TYPES } from "@shared/application/tokens.js";
@@ -10,6 +11,9 @@ import { PORT_TYPES } from "@shared/application/tokens.js";
 export interface EnsureFreshJobPoolForSignatureInput {
   readonly querySignature: string;
   readonly now: Date;
+  // The scoped upstream query to fetch with, built from the same CV context
+  // the query signature was derived from (ADR 0021 §1/§7, issue #26).
+  readonly query: FetchSourceQuery;
 }
 
 export interface EnsureFreshJobPoolForSignaturePort {
@@ -46,7 +50,7 @@ export class EnsureFreshJobPoolForSignatureUseCase
   ) {}
 
   async execute(input: EnsureFreshJobPoolForSignatureInput): Promise<void> {
-    const { querySignature, now } = input;
+    const { querySignature, now, query } = input;
     const lastFetchedAt = await this.freshness.getLastFetchedAt(querySignature);
 
     if (isFresh(lastFetchedAt, now)) {
@@ -62,7 +66,7 @@ export class EnsureFreshJobPoolForSignatureUseCase
     }
 
     try {
-      await this.fetchAndRecordFreshness(querySignature, lastFetchedAt, now);
+      await this.fetchAndRecordFreshness(querySignature, query, lastFetchedAt, now);
     } finally {
       await this.lock.release(querySignature);
     }
@@ -70,13 +74,14 @@ export class EnsureFreshJobPoolForSignatureUseCase
 
   private async fetchAndRecordFreshness(
     querySignature: string,
+    query: FetchSourceQuery,
     lastFetchedAt: Date | null,
     now: Date,
   ): Promise<void> {
     const hasFallbackCache = lastFetchedAt !== null;
 
     try {
-      const run = await this.executeFetchRunLifecycle.execute(querySignature);
+      const run = await this.executeFetchRunLifecycle.execute(querySignature, query);
       if (run.status === "failed") {
         if (!hasFallbackCache) {
           throw new FetchFailedWithNoCacheError(querySignature);

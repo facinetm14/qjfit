@@ -3,6 +3,7 @@ import type { FetchFreshnessPort } from "../ports/fetch-freshness.port.js";
 import type { FetchLockPort } from "../ports/fetch-lock.port.js";
 import type { ExecuteFetchRunLifecyclePort } from "./execute-fetch-run-lifecycle.usecase.js";
 import type { LoggerPort } from "@shared/application/ports/logger.port.js";
+import type { FetchSourceQuery } from "../ports/fetch-source.port.js";
 import type { FetchRun } from "../../domain/fetch-run.entity.js";
 import { FetchFailedWithNoCacheError } from "../../domain/errors/fetch-failed-no-cache.error.js";
 
@@ -41,6 +42,7 @@ class FakeFetchLock implements FetchLockPort {
 
 class FakeExecuteFetchRunLifecycle implements ExecuteFetchRunLifecyclePort {
   public readonly calls: Array<string | null> = [];
+  public readonly queryCalls: Array<FetchSourceQuery | null | undefined> = [];
   constructor(
     private readonly result:
       | FetchRun
@@ -48,8 +50,12 @@ class FakeExecuteFetchRunLifecycle implements ExecuteFetchRunLifecyclePort {
       | Error = buildRun("completed"),
   ) {}
 
-  async execute(querySignature: string | null): Promise<FetchRun> {
+  async execute(
+    querySignature: string | null,
+    query?: FetchSourceQuery | null,
+  ): Promise<FetchRun> {
     this.calls.push(querySignature);
+    this.queryCalls.push(query);
     if (this.result instanceof Error) {
       throw this.result;
     }
@@ -79,6 +85,11 @@ function buildRun(status: FetchRun["status"], overrides: Partial<FetchRun> = {})
 }
 
 const SIGNATURE = "title:backend-developer";
+const QUERY: FetchSourceQuery = {
+  targetRole: "Backend Developer",
+  location: "Paris",
+  contractTypes: ["CDI"],
+};
 
 describe("EnsureFreshJobPoolForSignatureUseCase", () => {
   it("skips fetching when the signature's pool was fetched less than 2 hours ago", async () => {
@@ -96,6 +107,7 @@ describe("EnsureFreshJobPoolForSignatureUseCase", () => {
     await useCase.execute({
       querySignature: SIGNATURE,
       now: new Date("2026-09-15T11:00:00.000Z"),
+      query: QUERY,
     });
 
     expect(lifecycle.calls).toHaveLength(0);
@@ -116,9 +128,11 @@ describe("EnsureFreshJobPoolForSignatureUseCase", () => {
     await useCase.execute({
       querySignature: SIGNATURE,
       now: new Date("2026-09-15T11:00:00.000Z"),
+      query: QUERY,
     });
 
     expect(lifecycle.calls).toEqual([SIGNATURE]);
+    expect(lifecycle.queryCalls).toEqual([QUERY]);
     expect(lock.acquireCalls).toEqual([SIGNATURE]);
     expect(lock.releaseCalls).toEqual([SIGNATURE]);
   });
@@ -138,6 +152,7 @@ describe("EnsureFreshJobPoolForSignatureUseCase", () => {
     await useCase.execute({
       querySignature: SIGNATURE,
       now: new Date("2026-09-15T11:00:00.000Z"),
+      query: QUERY,
     });
 
     expect(lifecycle.calls).toEqual([SIGNATURE]);
@@ -160,6 +175,7 @@ describe("EnsureFreshJobPoolForSignatureUseCase", () => {
     await useCase.execute({
       querySignature: SIGNATURE,
       now: new Date("2026-09-15T11:00:00.000Z"),
+      query: QUERY,
     });
 
     expect(freshness.markFetchedCalls).toEqual([
@@ -182,6 +198,7 @@ describe("EnsureFreshJobPoolForSignatureUseCase", () => {
     await useCase.execute({
       querySignature: SIGNATURE,
       now: new Date("2026-09-15T11:00:00.000Z"),
+      query: QUERY,
     });
 
     expect(lifecycle.calls).toHaveLength(0);
@@ -206,6 +223,7 @@ describe("EnsureFreshJobPoolForSignatureUseCase", () => {
     await useCase.execute({
       querySignature: SIGNATURE,
       now: new Date("2026-09-15T11:00:00.000Z"),
+      query: QUERY,
     });
 
     expect(lock.releaseCalls).toEqual([SIGNATURE]);
@@ -227,7 +245,7 @@ describe("EnsureFreshJobPoolForSignatureUseCase", () => {
     );
 
     await expect(
-      useCase.execute({ querySignature: SIGNATURE, now: new Date("2026-09-15T11:00:00.000Z") }),
+      useCase.execute({ querySignature: SIGNATURE, now: new Date("2026-09-15T11:00:00.000Z"), query: QUERY }),
     ).resolves.toBeUndefined();
 
     expect(logger.errors).toHaveLength(1);
@@ -250,6 +268,7 @@ describe("EnsureFreshJobPoolForSignatureUseCase", () => {
     await useCase.execute({
       querySignature: SIGNATURE,
       now: new Date("2026-09-15T11:00:00.000Z"),
+      query: QUERY,
     });
 
     expect(logger.errors).toHaveLength(1);
@@ -270,7 +289,7 @@ describe("EnsureFreshJobPoolForSignatureUseCase", () => {
     );
 
     await expect(
-      useCase.execute({ querySignature: SIGNATURE, now: new Date("2026-09-15T11:00:00.000Z") }),
+      useCase.execute({ querySignature: SIGNATURE, now: new Date("2026-09-15T11:00:00.000Z"), query: QUERY }),
     ).rejects.toThrow(FetchFailedWithNoCacheError);
 
     expect(lock.releaseCalls).toEqual([SIGNATURE]);
@@ -288,7 +307,7 @@ describe("EnsureFreshJobPoolForSignatureUseCase", () => {
     );
 
     await expect(
-      useCase.execute({ querySignature: SIGNATURE, now: new Date("2026-09-15T11:00:00.000Z") }),
+      useCase.execute({ querySignature: SIGNATURE, now: new Date("2026-09-15T11:00:00.000Z"), query: QUERY }),
     ).rejects.toThrow(FetchFailedWithNoCacheError);
   });
 });
