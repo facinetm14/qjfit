@@ -3,6 +3,7 @@ export type RunStatus = "pending" | "running" | "completed" | "failed";
 export interface FetchRun {
   readonly id: string;
   readonly status: RunStatus;
+  readonly querySignature: string | null;
   readonly startedAt: Date | null;
   readonly endedAt: Date | null;
   readonly createdAt: Date;

@@ -15,7 +15,6 @@ function buildConfig(): AppConfig {
     NODE_ENV: "test",
     PORT: 3000,
     CORS_ORIGIN: "http://localhost:5173",
-    FETCH_RUN_CRON_SCHEDULE: "0 */4 * * *",
     FRANCE_TRAVAIL_BASE_URL: "https://api.francetravail.io/partenaire/offresdemploi/v2",
     FRANCE_TRAVAIL_AUTH_URL:
       "https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=/partenaire",

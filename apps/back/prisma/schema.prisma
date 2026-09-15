@@ -57,15 +57,17 @@ model Job {
 }
 
 model FetchRun {
-  id         String    @id @default(cuid())
-  status     RunStatus @default(pending)
-  startedAt  DateTime? @db.Timestamptz
-  endedAt    DateTime? @db.Timestamptz
-  createdAt  DateTime  @default(now()) @db.Timestamptz
-  updatedAt  DateTime  @updatedAt @db.Timestamptz
-  logs       FetchLog[]
+  id             String    @id @default(cuid())
+  status         RunStatus @default(pending)
+  querySignature String?
+  startedAt      DateTime? @db.Timestamptz
+  endedAt        DateTime? @db.Timestamptz
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @db.Timestamptz
+  logs           FetchLog[]
 
   @@index([createdAt])
+  @@index([querySignature, status, endedAt])
   @@map("fetch_runs")
 }
 

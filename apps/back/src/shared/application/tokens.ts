@@ -13,6 +13,11 @@ export const PORT_TYPES = {
   ExecuteFetchRunLifecycleUseCase: Symbol.for(
     "ExecuteFetchRunLifecycleUseCase",
   ),
+  FetchFreshness: Symbol.for("FetchFreshness"),
+  FetchLock: Symbol.for("FetchLock"),
+  EnsureFreshJobPoolForSignatureUseCase: Symbol.for(
+    "EnsureFreshJobPoolForSignatureUseCase",
+  ),
   CvTextExtractor: Symbol.for("CvTextExtractor"),
   RateLimiter: Symbol.for("RateLimiter"),
   MatchTicketStore: Symbol.for("MatchTicketStore"),

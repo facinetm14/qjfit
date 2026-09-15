@@ -4,6 +4,7 @@ import type { FetchRunsRepositoryPort } from "../ports/fetch-runs-repository.por
 import type { FetchSourcePort } from "../ports/fetch-source.port.js";
 import type { LoggerPort } from "@shared/application/ports/logger.port.js";
 import type { NormalizeAndPersistJobsPort } from "@jobs/application/usecases/normalize-and-persist-jobs.usecase.js";
+import type { FetchRun } from "../../domain/fetch-run.entity.js";
 import { PORT_TYPES } from "@shared/application/tokens.js";
 
 function toErrorMessage(error: unknown): string {
@@ -13,8 +14,14 @@ function toErrorMessage(error: unknown): string {
   return "Unknown error";
 }
 
+export interface ExecuteFetchRunLifecyclePort {
+  execute(querySignature: string | null): Promise<FetchRun>;
+}
+
 @injectable()
-export class ExecuteFetchRunLifecycleUseCase {
+export class ExecuteFetchRunLifecycleUseCase
+  implements ExecuteFetchRunLifecyclePort
+{
   constructor(
     @inject(PORT_TYPES.FetchRunsRepository)
     private readonly fetchRunsRepository: FetchRunsRepositoryPort,
@@ -28,8 +35,8 @@ export class ExecuteFetchRunLifecycleUseCase {
     private readonly logger: LoggerPort,
   ) {}
 
-  async execute(): Promise<void> {
-    const run = await this.fetchRunsRepository.createPending();
+  async execute(querySignature: string | null = null): Promise<FetchRun> {
+    const run = await this.fetchRunsRepository.createPending(querySignature);
     const runId = run.id;
     const startedAt = new Date();
     await this.fetchRunsRepository.markRunning(runId, startedAt);
@@ -41,10 +48,9 @@ export class ExecuteFetchRunLifecycleUseCase {
           { runId },
           "All fetch sources failed; marking run as failed",
         );
-        await this.fetchRunsRepository.markFailed(runId, endedAt);
-        return;
+        return await this.fetchRunsRepository.markFailed(runId, endedAt);
       }
-      await this.fetchRunsRepository.markCompleted(runId, endedAt);
+      return await this.fetchRunsRepository.markCompleted(runId, endedAt);
     } catch {
       const endedAt = new Date();
       await this.fetchRunsRepository.markFailed(runId, endedAt);
@@ -57,10 +63,6 @@ export class ExecuteFetchRunLifecycleUseCase {
     for (const source of this.fetchSources) {
       try {
         const result = await source.fetch(runId);
-        console.dir(
-          { total: result.jobs.length, job1: result.jobs[0] },
-          { depth: null },
-        );
         await this.normalizeAndPersistJobsService.execute(result.jobs);
         await this.fetchLogsRepository.create({
           runId,

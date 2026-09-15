@@ -15,6 +15,10 @@ import type {
   ScoreMatchCandidatesInput,
   ScoreMatchCandidatesPort,
 } from "@scoring/application/usecases/score-match-candidates.usecase.js";
+import type {
+  EnsureFreshJobPoolForSignatureInput,
+  EnsureFreshJobPoolForSignaturePort,
+} from "@fetch-runs/application/usecases/ensure-fresh-job-pool-for-signature.usecase.js";
 import { CV_MAX_FILE_SIZE_BYTES } from "@cv/domain/cv-upload.entity.js";
 import { UnsupportedCvFileTypeError } from "@cv/domain/errors/unsupported-cv-file-type.error.js";
 import { CvFileTooLargeError } from "@cv/domain/errors/cv-file-too-large.error.js";
@@ -93,6 +97,20 @@ class FakeJobsRepository implements JobsRepositoryPort {
   }
 }
 
+class FakeEnsureFreshJobPoolForSignature
+  implements EnsureFreshJobPoolForSignaturePort
+{
+  calls: EnsureFreshJobPoolForSignatureInput[] = [];
+  constructor(private readonly failure?: Error) {}
+
+  async execute(input: EnsureFreshJobPoolForSignatureInput): Promise<void> {
+    this.calls.push(input);
+    if (this.failure) {
+      throw this.failure;
+    }
+  }
+}
+
 class FakeScoreMatchCandidates implements ScoreMatchCandidatesPort {
   calls: ScoreMatchCandidatesInput[] = [];
   constructor(private readonly failure?: Error) {}
@@ -162,6 +180,7 @@ describe("CreateMatchRequestUseCase", () => {
       new FakeCvTextExtractor(),
       matchTicketStore,
       jobsRepository,
+      new FakeEnsureFreshJobPoolForSignature(),
       new FakeScoreMatchCandidates(),
       new FakeLogger(),
     );
@@ -187,6 +206,7 @@ describe("CreateMatchRequestUseCase", () => {
       new FakeCvTextExtractor(),
       new FakeMatchTicketStore(),
       new FakeJobsRepository([buildJob()]),
+      new FakeEnsureFreshJobPoolForSignature(),
       new FakeScoreMatchCandidates(),
       new FakeLogger(),
     );
@@ -204,11 +224,13 @@ describe("CreateMatchRequestUseCase", () => {
     const matchTicketStore = new FakeMatchTicketStore();
     const jobs = [buildJob()];
     const scoreMatchCandidates = new FakeScoreMatchCandidates();
+    const ensureFreshJobPoolForSignature = new FakeEnsureFreshJobPoolForSignature();
     const useCase = new CreateMatchRequestUseCase(
       new FakeRateLimiter(allowedDecision()),
       new FakeCvTextExtractor("Backend Developer, Paris, CDI"),
       matchTicketStore,
       new FakeJobsRepository(jobs),
+      ensureFreshJobPoolForSignature,
       scoreMatchCandidates,
       new FakeLogger(),
     );
@@ -232,6 +254,39 @@ describe("CreateMatchRequestUseCase", () => {
       contractTypes: ["CDI"],
     });
     expect(scoreMatchCandidates.calls[0]?.cvMarkdown).toBe("Backend Developer, Paris, CDI");
+    expect(ensureFreshJobPoolForSignature.calls).toEqual([
+      {
+        querySignature: "title:backend-developer|mobility:paris|contract:cdi",
+        now: new Date("2026-07-24T10:00:00.000Z"),
+      },
+    ]);
+  });
+
+  it("marks the ticket failed when ensuring the job pool is fresh throws", async () => {
+    const matchTicketStore = new FakeMatchTicketStore();
+    const logger = new FakeLogger();
+    const useCase = new CreateMatchRequestUseCase(
+      new FakeRateLimiter(allowedDecision()),
+      new FakeCvTextExtractor(),
+      matchTicketStore,
+      new FakeJobsRepository([buildJob()]),
+      new FakeEnsureFreshJobPoolForSignature(new Error("fetch failed, no cache")),
+      new FakeScoreMatchCandidates(),
+      logger,
+    );
+
+    const { ticketId } = await useCase.execute({
+      cvFile: { buffer: Buffer.from("cv"), mimeType: "application/pdf" },
+      ip: "203.0.113.5",
+      now: new Date("2026-07-24T10:00:00.000Z"),
+    });
+    await flushMicrotasks();
+
+    const ticket = await matchTicketStore.get(ticketId);
+    expect(ticket).toMatchObject({
+      status: "failed",
+      error: "fetch failed, no cache",
+    });
   });
 
   it("marks the ticket failed when the candidate lookup throws", async () => {
@@ -242,6 +297,7 @@ describe("CreateMatchRequestUseCase", () => {
       new FakeCvTextExtractor(),
       matchTicketStore,
       new FakeJobsRepository([], new Error("pool unavailable")),
+      new FakeEnsureFreshJobPoolForSignature(),
       new FakeScoreMatchCandidates(),
       logger,
     );
@@ -269,6 +325,7 @@ describe("CreateMatchRequestUseCase", () => {
       new FakeCvTextExtractor(),
       matchTicketStore,
       new FakeJobsRepository([buildJob()]),
+      new FakeEnsureFreshJobPoolForSignature(),
       new FakeScoreMatchCandidates(new Error("scoring provider unavailable")),
       logger,
     );
@@ -295,6 +352,7 @@ describe("CreateMatchRequestUseCase", () => {
       cvTextExtractor,
       new FakeMatchTicketStore(),
       new FakeJobsRepository(),
+      new FakeEnsureFreshJobPoolForSignature(),
       new FakeScoreMatchCandidates(),
       new FakeLogger(),
     );
@@ -321,6 +379,7 @@ describe("CreateMatchRequestUseCase", () => {
       new FakeCvTextExtractor(),
       new FakeMatchTicketStore(),
       new FakeJobsRepository(),
+      new FakeEnsureFreshJobPoolForSignature(),
       new FakeScoreMatchCandidates(),
       new FakeLogger(),
     );
@@ -344,6 +403,7 @@ describe("CreateMatchRequestUseCase", () => {
       new FakeCvTextExtractor("Lorem ipsum dolor sit amet."),
       matchTicketStore,
       new FakeJobsRepository(),
+      new FakeEnsureFreshJobPoolForSignature(),
       new FakeScoreMatchCandidates(),
       new FakeLogger(),
     );
@@ -372,6 +432,7 @@ describe("CreateMatchRequestUseCase", () => {
       cvTextExtractor,
       matchTicketStore,
       new FakeJobsRepository(),
+      new FakeEnsureFreshJobPoolForSignature(),
       new FakeScoreMatchCandidates(),
       new FakeLogger(),
     );

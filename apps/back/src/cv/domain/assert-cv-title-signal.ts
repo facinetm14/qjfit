@@ -5,7 +5,9 @@ import { CvTitleSignalMissingError } from "./errors/cv-title-signal-missing.erro
 // yields neither an explicit title phrase nor a tech-stack fallback (see
 // extractCvContext) must reject the match request outright instead of
 // silently falling back to an unscoped search.
-export function assertCvHasTitleSignal(cvContext: CvContext): void {
+export function assertCvHasTitleSignal(
+  cvContext: CvContext,
+): asserts cvContext is CvContext & { targetRole: string } {
   if (!cvContext.targetRole) {
     throw new CvTitleSignalMissingError();
   }

@@ -8,9 +8,9 @@ import { TYPES } from '@composition-root/container/types.js';
 export class PrismaFetchRunsRepository implements FetchRunsRepositoryPort {
   constructor(@inject(TYPES.PrismaClient) private readonly prisma: PrismaClient) {}
 
-  async createPending(): Promise<FetchRun> {
+  async createPending(querySignature: string | null): Promise<FetchRun> {
     return this.prisma.fetchRun.create({
-      data: { status: 'pending' }
+      data: { status: 'pending', querySignature }
     });
   }
 
@@ -41,6 +41,13 @@ export class PrismaFetchRunsRepository implements FetchRunsRepositoryPort {
         status: 'failed',
         endedAt
       }
+    });
+  }
+
+  async findMostRecentCompleted(querySignature: string): Promise<FetchRun | null> {
+    return this.prisma.fetchRun.findFirst({
+      where: { querySignature, status: 'completed' },
+      orderBy: { endedAt: 'desc' }
     });
   }
 }

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import cron from "node-cron";
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
@@ -9,12 +8,6 @@ const envSchema = z.object({
     .default("development"),
   PORT: z.coerce.number().int().positive(),
   CORS_ORIGIN: z.string().url(),
-  FETCH_RUN_CRON_SCHEDULE: z
-    .string()
-    .default("0 */4 * * *")
-    .refine((value) => cron.validate(value), {
-      message: "FETCH_RUN_CRON_SCHEDULE must be a valid cron expression",
-    }),
   FRANCE_TRAVAIL_BASE_URL: z
     .string()
     .default("https://api.francetravail.io/partenaire/offresdemploi/v2"),
