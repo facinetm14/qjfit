@@ -1,7 +1,8 @@
 import { ref } from 'vue';
 import { POOL_STATS } from '../data/jobs.fixture.js';
 import type { MatchedJob, PoolStats } from '../types/job.js';
-import type { ApiCreateMatchResponse, ApiMatchTicket, ApiRateLimitExceededResponse } from '../types/match-api.js';
+import type { ApiMatchTicket } from '../types/match-api.js';
+import { fetchMatchTicket, submitCvMatch } from '../utils/match-api-client.js';
 import { toMatchedJob } from '../utils/map-scored-job.js';
 import { validateCvFile } from '../utils/validate-cv-file.js';
 
@@ -35,17 +36,16 @@ export function createMatchFlow(poolStats: PoolStats = POOL_STATS) {
 
   async function pollTicket(ticketId: string): Promise<ApiMatchTicket> {
     for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
-      const response = await fetch(`/api/match/${ticketId}`);
-      if (response.status === 404) {
+      const result = await fetchMatchTicket(ticketId);
+      if (result.kind === 'not-found') {
         throw new Error('This match request has expired. Please try again.');
       }
-      if (!response.ok) {
+      if (result.kind === 'error') {
         throw new Error('Unable to check your match status. Please try again.');
       }
 
-      const ticket = (await response.json()) as ApiMatchTicket;
-      if (ticket.status !== 'pending') {
-        return ticket;
+      if (result.ticket.status !== 'pending') {
+        return result.ticket;
       }
 
       await sleep(POLL_INTERVAL_MS);
@@ -68,27 +68,22 @@ export function createMatchFlow(poolStats: PoolStats = POOL_STATS) {
     errorMessage.value = null;
 
     try {
-      const formData = new FormData();
-      formData.append('cv', file);
-      const response = await fetch('/api/match', { method: 'POST', body: formData });
+      const submission = await submitCvMatch(file);
 
-      if (response.status === 429) {
-        const body = (await response.json()) as ApiRateLimitExceededResponse;
-        resetAt.value = new Date(body.resetAt);
+      if (submission.kind === 'rate-limited') {
+        resetAt.value = new Date(submission.response.resetAt);
         checksLeft.value = 0;
         panel.value = 'limited';
         return;
       }
 
-      if (!response.ok) {
-        const body = (await response.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? 'Unable to submit your CV. Please try again.');
+      if (submission.kind === 'error') {
+        throw new Error(submission.message);
       }
 
-      const body = (await response.json()) as ApiCreateMatchResponse;
-      checksLeft.value = body.remaining;
+      checksLeft.value = submission.response.remaining;
 
-      const ticket = await pollTicket(body.ticketId);
+      const ticket = await pollTicket(submission.response.ticketId);
       if (ticket.status === 'failed') {
         throw new Error(ticket.error);
       }

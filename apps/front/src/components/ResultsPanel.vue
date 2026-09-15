@@ -45,6 +45,7 @@ import ResultsFilters from './ResultsFilters.vue';
 import ResultCard from './ResultCard.vue';
 import { useJobFilters } from '../composables/useJobFilters.js';
 import { jobsToCsv } from '../utils/export-csv.js';
+import { downloadCsv } from '../utils/download-csv.js';
 import type { MatchedJob } from '../types/job.js';
 
 const props = defineProps<{ jobs: readonly MatchedJob[]; poolTotal: number }>();
@@ -54,14 +55,7 @@ const { minScore, sources, contracts, remotePolicies, sortOrder, filteredJobs, t
   useJobFilters(jobsRef);
 
 function exportCsv() {
-  const csv = jobsToCsv(filteredJobs.value);
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'qjfit-matches.csv';
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadCsv(jobsToCsv(filteredJobs.value), 'qjfit-matches.csv');
 }
 </script>
 

@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import type { ContractType, JobSource, RemotePolicy } from '../types/job.js';
-import { remotePolicyLabel, sourceLabel } from '../types/job.js';
+import { ALL_CONTRACTS, ALL_REMOTE, ALL_SOURCES, remotePolicyLabel, sourceLabel } from '../types/job.js';
 
 defineProps<{
   minScore: number;
@@ -70,9 +70,9 @@ defineEmits<{
   (e: 'toggle-remote', value: RemotePolicy): void;
 }>();
 
-const sourceOptions: JobSource[] = ['france-travail', 'wttj-rss'];
-const contractOptions: ContractType[] = ['CDI', 'CDD', 'Freelance', 'Internship', 'Apprenticeship', 'Other'];
-const remoteOptions: RemotePolicy[] = ['Full', 'Hybrid', 'OnSite'];
+const sourceOptions = ALL_SOURCES;
+const contractOptions = ALL_CONTRACTS;
+const remoteOptions = ALL_REMOTE;
 </script>
 
 <style scoped>

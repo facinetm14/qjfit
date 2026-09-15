@@ -24,6 +24,14 @@ module.exports = {
   },
   transformIgnorePatterns: ['/node_modules/(?!(inversify|@inversifyjs)/)'],
   moduleNameMapper: {
+    '^@cv/(.*)\\.js$': '<rootDir>/src/cv/$1',
+    '^@fetch-runs/(.*)\\.js$': '<rootDir>/src/fetch-runs/$1',
+    '^@jobs/(.*)\\.js$': '<rootDir>/src/jobs/$1',
+    '^@match/(.*)\\.js$': '<rootDir>/src/match/$1',
+    '^@rate-limiting/(.*)\\.js$': '<rootDir>/src/rate-limiting/$1',
+    '^@scoring/(.*)\\.js$': '<rootDir>/src/scoring/$1',
+    '^@shared/(.*)\\.js$': '<rootDir>/src/shared/$1',
+    '^@composition-root/(.*)\\.js$': '<rootDir>/src/composition-root/$1',
     '^(\\.{1,2}/.*)\\.js$': '$1'
   }
 };

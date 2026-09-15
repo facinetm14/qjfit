@@ -119,7 +119,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { PoolStats } from "../types/job.js";
-import { ClientEvents, sourceLabel } from "../types/job.js";
+import { sourceLabel } from "../types/job.js";
+import { ClientEvents } from "../types/client-events.js";
 
 const props = defineProps<{ file: File | null; fileError: string | null; poolStats: PoolStats }>();
 const emit = defineEmits<{
