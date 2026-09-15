@@ -38,7 +38,7 @@ describe("extractCvContext", () => {
 
     const context = extractCvContext(text);
 
-    expect(context.targetRole).toBe("Software Engineer");
+    expect(context.targetRole).toBe("Senior Software Engineer");
     expect(context.seniority).toEqual({ minYears: 8, maxYears: 10 });
     expect(context.contractTypes).toEqual(["Freelance"]);
     expect(context.location).toBe("Paris");
@@ -81,20 +81,50 @@ describe("extractCvContext", () => {
     expect(context.location).toBe("Paris");
   });
 
-  describe("role spacing/hyphenation variants", () => {
+  describe("explicit title-phrase matching (issue #24)", () => {
     it.each([
-      ["Fullstack Developer", "Full Stack Developer"],
-      ["Full-Stack Developer", "Full Stack Developer"],
-      ["Full Stack Engineer", "Full Stack Developer"],
-      ["Backend Engineer", "Backend Engineer"],
-      ["Back-End Developer", "Backend Developer"],
-      ["DevOps", "DevOps Engineer"],
-      ["Dev-Ops Engineer", "DevOps Engineer"],
-      ["Ingénieur Logiciel", "Software Engineer"],
-      ["Product Owner", "Product Manager"],
-    ])("resolves %s to the canonical role %s", (rawTitle, expectedRole) => {
+      "Fullstack Developer",
+      "Full-Stack Developer",
+      "Full Stack Engineer",
+      "Backend Engineer",
+      "Back-End Developer",
+      "DevOps",
+      "Dev-Ops Engineer",
+      "Ingénieur Logiciel",
+      "Product Owner",
+      "Développeuse Frontend",
+      "Chef de Produit",
+      "Ingénieur DevOps",
+    ])("returns the literal matched phrase %s verbatim, not a normalized label", (rawTitle) => {
       const context = extractCvContext(rawTitle);
-      expect(context.targetRole).toBe(expectedRole);
+      expect(context.targetRole).toBe(rawTitle);
+    });
+
+    it("returns only the matched phrase, not surrounding CV text", () => {
+      const context = extractCvContext(
+        "Curriculum Vitae\n\nSenior Backend Engineer\n\n5 years of experience.",
+      );
+      expect(context.targetRole).toBe("Senior Backend Engineer");
+    });
+  });
+
+  describe("tech-stack fallback (issue #24)", () => {
+    it("synthesizes a fallback title from the first detected tech-stack keyword when no title phrase is present", () => {
+      const context = extractCvContext(
+        "Compétences: Python, Django, PostgreSQL. 3 ans d'expérience en développement.",
+      );
+
+      expect(context.targetRole).toBe("Python Developer");
+      expect(context.techStack).toEqual(
+        expect.arrayContaining(["Python", "Django", "PostgreSQL"]),
+      );
+    });
+  });
+
+  describe("no title signal (issue #24)", () => {
+    it("returns a null target role when neither a title phrase nor a tech-stack keyword is present", () => {
+      const context = extractCvContext("Lorem ipsum dolor sit amet.");
+      expect(context.targetRole).toBeNull();
     });
   });
 });

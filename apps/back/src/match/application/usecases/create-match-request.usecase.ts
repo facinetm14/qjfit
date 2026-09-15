@@ -10,6 +10,7 @@ import type { JobsRepositoryPort } from "@jobs/application/ports/jobs-repository
 import type { LoggerPort } from "@shared/application/ports/logger.port.js";
 import { validateCvUpload } from "@cv/domain/validate-cv-upload.js";
 import { extractCvContext } from "@cv/domain/extract-cv-context.js";
+import { assertCvHasTitleSignal } from "@cv/domain/assert-cv-title-signal.js";
 import { buildAnonymizedMarkdownCv } from "@cv/domain/convert-cv-to-markdown.js";
 import type { CvContext } from "@cv/domain/cv-context.entity.js";
 import { MatchRateLimitExceededError } from "@rate-limiting/domain/errors/match-rate-limit-exceeded.error.js";
@@ -66,6 +67,7 @@ export class CreateMatchRequestUseCase {
 
     const text = await this.cvTextExtractor.extract(input.cvFile);
     const cvContext = extractCvContext(text);
+    assertCvHasTitleSignal(cvContext);
     const cvMarkdown = buildAnonymizedMarkdownCv(text);
 
     const ticketId = randomUUID();
