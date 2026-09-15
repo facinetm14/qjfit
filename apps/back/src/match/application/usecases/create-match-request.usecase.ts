@@ -17,6 +17,7 @@ import { MatchRateLimitExceededError } from "@rate-limiting/domain/errors/match-
 import type { ScoreMatchCandidatesPort } from "@scoring/application/usecases/score-match-candidates.usecase.js";
 import { buildQuerySignature } from "@fetch-runs/domain/query-signature.js";
 import type { EnsureFreshJobPoolForSignaturePort } from "@fetch-runs/application/usecases/ensure-fresh-job-pool-for-signature.usecase.js";
+import type { FetchSourceQuery } from "@fetch-runs/application/ports/fetch-source.port.js";
 import { PORT_TYPES } from "@shared/application/tokens.js";
 
 export interface CreateMatchRequestInput {
@@ -74,16 +75,26 @@ export class CreateMatchRequestUseCase {
     assertCvHasTitleSignal(cvContext);
     const cvMarkdown = buildAnonymizedMarkdownCv(text);
     const querySignature = buildQuerySignature(cvContext);
+    const fetchSourceQuery: FetchSourceQuery = {
+      targetRole: cvContext.targetRole,
+      location: cvContext.location,
+      contractTypes: cvContext.contractTypes,
+    };
 
     const ticketId = randomUUID();
     await this.matchTicketStore.createPending(ticketId, input.now);
 
     queueMicrotask(() => {
-      this.runMatchPipeline(ticketId, cvContext, cvMarkdown, querySignature, input.now).catch(
-        (error) => {
-          this.logger.error({ ticketId, err: error }, "Match pipeline failed");
-        },
-      );
+      this.runMatchPipeline(
+        ticketId,
+        cvContext,
+        cvMarkdown,
+        querySignature,
+        fetchSourceQuery,
+        input.now,
+      ).catch((error) => {
+        this.logger.error({ ticketId, err: error }, "Match pipeline failed");
+      });
     });
 
     return { ticketId, remaining: decision.remaining };
@@ -94,10 +105,11 @@ export class CreateMatchRequestUseCase {
     cvContext: CvContext,
     cvMarkdown: string,
     querySignature: string,
+    query: FetchSourceQuery,
     now: Date,
   ): Promise<void> {
     try {
-      await this.ensureFreshJobPoolForSignature.execute({ querySignature, now });
+      await this.ensureFreshJobPoolForSignature.execute({ querySignature, now, query });
       const jobs = await this.jobsRepository.findMany();
       const results = await this.scoreMatchCandidatesUseCase.execute({
         cvContext,

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { FranceTravailConnector } from "./france-travail.connector.js";
 import type { FranceTravailAuthClient } from "./france-travail-auth.client.js";
+import type { FetchSourceQuery } from "../../../../../application/ports/fetch-source.port.js";
 
 const fixturesDir = path.resolve(
   process.cwd(),
@@ -348,6 +349,242 @@ describe("FranceTravailConnector", () => {
       await connector.fetch("run-1");
 
       expect(sleepCalls).toEqual([100, 100]);
+    });
+  });
+
+  describe("query-scoped requests (ADR 0021, issue #26)", () => {
+    function buildQuery(overrides: Partial<FetchSourceQuery> = {}): FetchSourceQuery {
+      return {
+        targetRole: "Backend Developer",
+        location: null,
+        contractTypes: [],
+        ...overrides,
+      };
+    }
+
+    it("sends no scoping params when the query is null (unscoped ops fetch)", async () => {
+      const calls: string[] = [];
+      const fetcher = async (url: string) => {
+        calls.push(url);
+        return response(pageOf(1));
+      };
+      const connector = new FranceTravailConnector(
+        { baseUrl: "https://api.test", pageSize: 150, fetcher },
+        buildAuthClient(),
+      );
+
+      await connector.fetch("run-1", null);
+
+      expect(calls).toEqual(["https://api.test/offres/search?range=0-149"]);
+    });
+
+    it("sends motsCles built from the query's target role", async () => {
+      const calls: string[] = [];
+      const fetcher = async (url: string) => {
+        calls.push(url);
+        return response(pageOf(1));
+      };
+      const connector = new FranceTravailConnector(
+        { baseUrl: "https://api.test", pageSize: 150, fetcher },
+        buildAuthClient(),
+      );
+
+      await connector.fetch("run-1", buildQuery());
+
+      expect(calls).toEqual([
+        "https://api.test/offres/search?range=0-149&motsCles=Backend+Developer",
+      ]);
+    });
+
+    it("sends a commune param when the mobility signal is a known city", async () => {
+      const calls: string[] = [];
+      const fetcher = async (url: string) => {
+        calls.push(url);
+        return response(pageOf(1));
+      };
+      const connector = new FranceTravailConnector(
+        { baseUrl: "https://api.test", pageSize: 150, fetcher },
+        buildAuthClient(),
+      );
+
+      await connector.fetch("run-1", buildQuery({ location: "Paris" }));
+
+      expect(calls).toEqual([
+        "https://api.test/offres/search?range=0-149&motsCles=Backend+Developer&commune=75056",
+      ]);
+    });
+
+    it("sends a region param when the mobility signal is a French region", async () => {
+      const calls: string[] = [];
+      const fetcher = async (url: string) => {
+        calls.push(url);
+        return response(pageOf(1));
+      };
+      const connector = new FranceTravailConnector(
+        { baseUrl: "https://api.test", pageSize: 150, fetcher },
+        buildAuthClient(),
+      );
+
+      await connector.fetch("run-1", buildQuery({ location: "Île-de-France" }));
+
+      expect(calls).toEqual([
+        "https://api.test/offres/search?range=0-149&motsCles=Backend+Developer&region=11",
+      ]);
+    });
+
+    it("omits the location param when the mobility signal has no geographic equivalent (Remote)", async () => {
+      const calls: string[] = [];
+      const fetcher = async (url: string) => {
+        calls.push(url);
+        return response(pageOf(1));
+      };
+      const connector = new FranceTravailConnector(
+        { baseUrl: "https://api.test", pageSize: 150, fetcher },
+        buildAuthClient(),
+      );
+
+      await connector.fetch("run-1", buildQuery({ location: "Remote" }));
+
+      expect(calls).toEqual([
+        "https://api.test/offres/search?range=0-149&motsCles=Backend+Developer",
+      ]);
+    });
+
+    it("omits the location param when the mobility signal is absent", async () => {
+      const calls: string[] = [];
+      const fetcher = async (url: string) => {
+        calls.push(url);
+        return response(pageOf(1));
+      };
+      const connector = new FranceTravailConnector(
+        { baseUrl: "https://api.test", pageSize: 150, fetcher },
+        buildAuthClient(),
+      );
+
+      await connector.fetch("run-1", buildQuery({ location: null }));
+
+      expect(calls).toEqual([
+        "https://api.test/offres/search?range=0-149&motsCles=Backend+Developer",
+      ]);
+    });
+
+    it("sends typeContrat for a CDI contract-type signal", async () => {
+      const calls: string[] = [];
+      const fetcher = async (url: string) => {
+        calls.push(url);
+        return response(pageOf(1));
+      };
+      const connector = new FranceTravailConnector(
+        { baseUrl: "https://api.test", pageSize: 150, fetcher },
+        buildAuthClient(),
+      );
+
+      await connector.fetch("run-1", buildQuery({ contractTypes: ["CDI"] }));
+
+      expect(calls).toEqual([
+        "https://api.test/offres/search?range=0-149&motsCles=Backend+Developer&typeContrat=CDI",
+      ]);
+    });
+
+    it("sends typeContrat for a CDD contract-type signal", async () => {
+      const calls: string[] = [];
+      const fetcher = async (url: string) => {
+        calls.push(url);
+        return response(pageOf(1));
+      };
+      const connector = new FranceTravailConnector(
+        { baseUrl: "https://api.test", pageSize: 150, fetcher },
+        buildAuthClient(),
+      );
+
+      await connector.fetch("run-1", buildQuery({ contractTypes: ["CDD"] }));
+
+      expect(calls).toEqual([
+        "https://api.test/offres/search?range=0-149&motsCles=Backend+Developer&typeContrat=CDD",
+      ]);
+    });
+
+    it("omits typeContrat when the contract-type signal is absent", async () => {
+      const calls: string[] = [];
+      const fetcher = async (url: string) => {
+        calls.push(url);
+        return response(pageOf(1));
+      };
+      const connector = new FranceTravailConnector(
+        { baseUrl: "https://api.test", pageSize: 150, fetcher },
+        buildAuthClient(),
+      );
+
+      await connector.fetch("run-1", buildQuery({ contractTypes: [] }));
+
+      expect(calls).toEqual([
+        "https://api.test/offres/search?range=0-149&motsCles=Backend+Developer",
+      ]);
+    });
+
+    it("omits typeContrat when the only contract types present have no confirmed France Travail code", async () => {
+      const calls: string[] = [];
+      const fetcher = async (url: string) => {
+        calls.push(url);
+        return response(pageOf(1));
+      };
+      const connector = new FranceTravailConnector(
+        { baseUrl: "https://api.test", pageSize: 150, fetcher },
+        buildAuthClient(),
+      );
+
+      await connector.fetch(
+        "run-1",
+        buildQuery({ contractTypes: ["Freelance", "Internship", "Apprenticeship", "Other"] }),
+      );
+
+      expect(calls).toEqual([
+        "https://api.test/offres/search?range=0-149&motsCles=Backend+Developer",
+      ]);
+    });
+
+    it("sends no experience-level param even when the query is fully scoped", async () => {
+      const calls: string[] = [];
+      const fetcher = async (url: string) => {
+        calls.push(url);
+        return response(pageOf(1));
+      };
+      const connector = new FranceTravailConnector(
+        { baseUrl: "https://api.test", pageSize: 150, fetcher },
+        buildAuthClient(),
+      );
+
+      await connector.fetch(
+        "run-1",
+        buildQuery({ location: "Paris", contractTypes: ["CDI"] }),
+      );
+
+      const url = calls[0] ?? "";
+      expect(url).not.toContain("experience");
+    });
+
+    it("carries the scoped params across every paginated request", async () => {
+      const calls: string[] = [];
+      const fetcher = async (url: string) => {
+        calls.push(url);
+        const offset = calls.length === 1 ? 0 : (calls.length - 1) * 50;
+        if (calls.length <= 2) {
+          return response(pageOf(50, offset), { contentRange: "offres 0-49/120" });
+        }
+        return response(pageOf(20, offset), { contentRange: "offres 100-119/120" });
+      };
+      const connector = new FranceTravailConnector(
+        { baseUrl: "https://api.test", pageSize: 50, fetcher, sleep: noopSleep },
+        buildAuthClient(),
+      );
+
+      await connector.fetch("run-1", buildQuery({ location: "Lyon" }));
+
+      expect(calls).toEqual([
+        "https://api.test/offres/search?range=0-49&motsCles=Backend+Developer&commune=69123",
+        "https://api.test/offres/search?range=50-99&motsCles=Backend+Developer&commune=69123",
+        "https://api.test/offres/search?range=100-149&motsCles=Backend+Developer&commune=69123",
+      ]);
     });
   });
 });

@@ -2,6 +2,7 @@ import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { inject, injectable } from "inversify";
 import type {
   FetchSourcePort,
+  FetchSourceQuery,
   FetchSourceResult,
 } from "../../../../../application/ports/fetch-source.port.js";
 import type { RawJob } from "@shared/domain/raw-job.entity.js";
@@ -42,7 +43,13 @@ export class WttjRssConnector implements FetchSourcePort {
     private readonly options: WttjRssConnectorOptions,
   ) {}
 
-  async fetch(_runId: string): Promise<FetchSourceResult> {
+  // A fixed feed URL per deployment can't be scoped by query (ADR 0021 §8) —
+  // the query param is accepted only to satisfy FetchSourcePort; the local
+  // relevance pre-filter stays this source's safety net once wired in.
+  async fetch(
+    _runId: string,
+    _query: FetchSourceQuery | null = null,
+  ): Promise<FetchSourceResult> {
     const fetcher = this.options.fetcher ?? fetch;
     const response = await fetcher(this.options.feedUrl);
 
