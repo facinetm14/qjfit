@@ -11,6 +11,7 @@ const embeddingProvider = new StubEmbeddingProviderAdapter();
 function buildCvContext(overrides: Partial<CvContext> = {}): CvContext {
   return {
     targetRole: null,
+    hasExplicitTargetRole: false,
     techStack: [],
     seniority: null,
     location: null,
@@ -47,7 +48,7 @@ describe("computeRelevanceScore", () => {
   describe("role gate", () => {
     it("zeroes the score when the job title doesn't indicate the same broad role family, regardless of other overlap", async () => {
       const cvContext = buildCvContext({
-        targetRole: "Full Stack Developer",
+        targetRole: "Full Stack Developer", hasExplicitTargetRole: true,
         techStack: ["TypeScript", "Docker"],
         location: "Paris",
         contractTypes: ["CDI"],
@@ -64,7 +65,7 @@ describe("computeRelevanceScore", () => {
     });
 
     it("zeroes a job whose title only shares the generic word \"ingénieur\"/\"engineer\" from a different discipline", async () => {
-      const cvContext = buildCvContext({ targetRole: "Full Stack Developer" });
+      const cvContext = buildCvContext({ targetRole: "Full Stack Developer", hasExplicitTargetRole: true });
       // Bare "ingénieur"/"engineer" spans every engineering discipline in
       // French job titles (pharmacology, mechanical, civil, ...) — it must
       // not be treated as a software-role-family indicator on its own.
@@ -80,22 +81,39 @@ describe("computeRelevanceScore", () => {
       expect(await score(cvContext, job)).toBeGreaterThan(0);
     });
 
+    it("does not gate on an inferred/synthesized target role that doesn't match the job title", async () => {
+      // A CV with no explicit title header gets a low-confidence synthesized
+      // targetRole (e.g. "Python Developer" from extractCvContext's
+      // tech-stack fallback) — it must stay a bonus-only signal, never a
+      // veto, or every real (French-titled) job gets zeroed for any CV
+      // lacking a clear title line.
+      const cvContext = buildCvContext({
+        targetRole: "Python Developer",
+        hasExplicitTargetRole: false,
+        techStack: ["Python"],
+        location: "Paris",
+      });
+      const job = buildJob({ title: "Ingénieur Backend H/F", location: "Paris" });
+
+      expect(await score(cvContext, job)).toBeGreaterThan(0);
+    });
+
     it("awards the strong-match weight when the exact target role appears in the title", async () => {
-      const cvContext = buildCvContext({ targetRole: "Backend Engineer" });
+      const cvContext = buildCvContext({ targetRole: "Backend Engineer", hasExplicitTargetRole: true });
       const job = buildJob({ title: "Backend Engineer" });
 
       expect(await score(cvContext, job)).toBe(4);
     });
 
     it("awards the (smaller) family-match weight for a same-family title that isn't an exact match", async () => {
-      const cvContext = buildCvContext({ targetRole: "Full Stack Developer" });
+      const cvContext = buildCvContext({ targetRole: "Full Stack Developer", hasExplicitTargetRole: true });
       const job = buildJob({ title: "Développeur Java Angular H/F", description: "desc" });
 
       expect(await score(cvContext, job)).toBe(2);
     });
 
     it("still passes 'Développeur Full Stack' for a 'Full Stack Developer' CV via embedding similarity", async () => {
-      const cvContext = buildCvContext({ targetRole: "Full Stack Developer" });
+      const cvContext = buildCvContext({ targetRole: "Full Stack Developer", hasExplicitTargetRole: true });
       const job = buildJob({ title: "Développeur Full Stack", description: "desc" });
 
       expect(await score(cvContext, job)).toBe(2);
@@ -104,14 +122,14 @@ describe("computeRelevanceScore", () => {
 
   describe("location gate", () => {
     it("zeroes the score when a stated physical location doesn't overlap, even with a role match", async () => {
-      const cvContext = buildCvContext({ targetRole: "Backend Engineer", location: "Marseille" });
+      const cvContext = buildCvContext({ targetRole: "Backend Engineer", hasExplicitTargetRole: true, location: "Marseille" });
       const job = buildJob({ title: "Backend Engineer", location: "Paris" });
 
       expect(await score(cvContext, job)).toBe(0);
     });
 
     it("does not gate on a remote-work preference, since a job's location field is never literally \"Remote\"", async () => {
-      const cvContext = buildCvContext({ targetRole: "Backend Engineer", location: "Remote" });
+      const cvContext = buildCvContext({ targetRole: "Backend Engineer", hasExplicitTargetRole: true, location: "Remote" });
       const job = buildJob({ title: "Backend Engineer", location: "Paris" });
 
       expect(await score(cvContext, job)).toBeGreaterThan(0);
@@ -125,14 +143,14 @@ describe("computeRelevanceScore", () => {
     });
 
     it("passes a job in Massy (dept 91) for a CV stating Île-de-France regional mobility", async () => {
-      const cvContext = buildCvContext({ targetRole: "Backend Engineer", location: "Île-de-France" });
+      const cvContext = buildCvContext({ targetRole: "Backend Engineer", hasExplicitTargetRole: true, location: "Île-de-France" });
       const job = buildJob({ title: "Backend Engineer", location: "91 - MASSY" });
 
       expect(await score(cvContext, job)).toBeGreaterThan(0);
     });
 
     it("still passes only Paris-area jobs for a CV stating the specific city Paris (unchanged behavior)", async () => {
-      const cvContext = buildCvContext({ targetRole: "Backend Engineer", location: "Paris" });
+      const cvContext = buildCvContext({ targetRole: "Backend Engineer", hasExplicitTargetRole: true, location: "Paris" });
       const parisJob = buildJob({ title: "Backend Engineer", location: "75 - PARIS" });
       const lyonJob = buildJob({ title: "Backend Engineer", location: "69 - LYON" });
 
@@ -141,14 +159,14 @@ describe("computeRelevanceScore", () => {
     });
 
     it("rejects a job in a different region from a CV's stated region", async () => {
-      const cvContext = buildCvContext({ targetRole: "Backend Engineer", location: "Île-de-France" });
+      const cvContext = buildCvContext({ targetRole: "Backend Engineer", hasExplicitTargetRole: true, location: "Île-de-France" });
       const job = buildJob({ title: "Backend Engineer", location: "69 - LYON" });
 
       expect(await score(cvContext, job)).toBe(0);
     });
 
     it("degrades to plain substring matching when the CV's location doesn't resolve against either table", async () => {
-      const cvContext = buildCvContext({ targetRole: "Backend Engineer", location: "Springfield" });
+      const cvContext = buildCvContext({ targetRole: "Backend Engineer", hasExplicitTargetRole: true, location: "Springfield" });
       const noMatch = buildJob({ title: "Backend Engineer", location: "75 - PARIS" });
       const literalMatch = buildJob({ title: "Backend Engineer", location: "Springfield, USA" });
 
@@ -191,7 +209,7 @@ describe("computeRelevanceScore", () => {
 
   it("sums weighted signals across all dimensions once the gates are cleared", async () => {
     const cvContext = buildCvContext({
-      targetRole: "Backend Engineer",
+      targetRole: "Backend Engineer", hasExplicitTargetRole: true,
       techStack: ["TypeScript", "Docker"],
       location: "Paris",
       contractTypes: ["CDI"],
@@ -205,7 +223,7 @@ describe("computeRelevanceScore", () => {
 
 describe("filterRelevantJobs", () => {
   it("excludes jobs that don't clear the relevance gates", async () => {
-    const cvContext = buildCvContext({ targetRole: "Full Stack Developer" });
+    const cvContext = buildCvContext({ targetRole: "Full Stack Developer", hasExplicitTargetRole: true });
     const matching = buildJob({ id: "job-match", title: "Développeur Full Stack" });
     const nonMatching = buildJob({ id: "job-no-match", title: "Hospitality Officer H/F" });
 
@@ -221,7 +239,7 @@ describe("filterRelevantJobs", () => {
 
   it("carries each job's relevanceScore forward instead of collapsing it to pass/fail", async () => {
     const cvContext = buildCvContext({
-      targetRole: "Backend Engineer",
+      targetRole: "Backend Engineer", hasExplicitTargetRole: true,
       techStack: ["TypeScript", "Docker"],
       location: "Paris",
     });

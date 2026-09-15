@@ -266,6 +266,14 @@ export class FranceTravailConnector implements FetchSourcePort {
         );
       }
 
+      // A search matching zero offers responds 204 No Content with an empty
+      // body — calling .json() on it throws "Unexpected end of JSON input"
+      // rather than yielding `{ resultats: [] }`. This is a legitimate
+      // "nothing matched" result, not a failure: stop paging here.
+      if (response.status === 204) {
+        break;
+      }
+
       const payload = await response.json();
       const parsed = franceTravailResponseSchema.safeParse(payload);
       if (!parsed.success) {

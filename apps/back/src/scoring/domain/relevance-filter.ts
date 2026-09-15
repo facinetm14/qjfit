@@ -134,11 +134,19 @@ function hasContractTypeOverlap(cvContext: CvContext, job: Job): boolean {
  *
  * Role and (physical) location are hard gates: a stated preference that
  * doesn't match zeroes the score outright, regardless of any other
- * overlap. Contract type is intentionally NOT a gate — every job currently
- * has contractType "Other" (the France Travail connector doesn't map a
- * real contract type yet), so gating on it would zero out the entire pool
- * for any CV that states one. It stays a bonus-only signal until that's
- * fixed, and until then never actually fires.
+ * overlap. The role gate only fires for an *explicitly* stated title
+ * (`hasExplicitTargetRole`) — a title synthesized from a tech-stack
+ * fallback (extractCvContext's low-confidence guess, e.g. "Python
+ * Developer" for a CV with no title header) is a weak signal that should
+ * only ever add bonus weight when it happens to match, never veto a job:
+ * gating on it too would zero out virtually every real (French-titled)
+ * job posting for any CV that doesn't spell out a title, reproducing the
+ * exact hard-fail that fallback was built to avoid. Contract type is
+ * intentionally NOT a gate — every job currently has contractType "Other"
+ * (the France Travail connector doesn't map a real contract type yet), so
+ * gating on it would zero out the entire pool for any CV that states one.
+ * It stays a bonus-only signal until that's fixed, and until then never
+ * actually fires.
  */
 export async function computeRelevanceScore(
   cvContext: CvContext,
@@ -152,7 +160,7 @@ export async function computeRelevanceScore(
     embeddingProvider,
     roleSimilarityThreshold,
   );
-  if (cvContext.targetRole && roleMatchTier === "none") {
+  if (cvContext.hasExplicitTargetRole && roleMatchTier === "none") {
     return 0;
   }
   if (!passesLocationGate(cvContext, job)) {

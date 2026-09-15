@@ -234,7 +234,7 @@ describe('loadConfig', () => {
       CORS_ORIGIN: 'http://localhost:5173'
     });
 
-    expect(config.OPENROUTER_MODEL).toBe('minimax/minimax-m3:free');
+    expect(config.OPENROUTER_MODEL).toBe('nvidia/nemotron-3-super-120b-a12b:free');
     expect(config.OPENROUTER_BASE_URL).toBe('https://openrouter.ai/api/v1');
   });
 

@@ -48,7 +48,7 @@ const envSchema = z.object({
   // No fallback provider, so this is hard-required at boot like the other
   // scoring options above.
   OPENROUTER_API_KEY: z.string().min(1),
-  OPENROUTER_MODEL: z.string().default("minimax/minimax-m3:free"),
+  OPENROUTER_MODEL: z.string().default("nvidia/nemotron-3-super-120b-a12b:free"),
   OPENROUTER_BASE_URL: z.string().default("https://openrouter.ai/api/v1"),
 });
 

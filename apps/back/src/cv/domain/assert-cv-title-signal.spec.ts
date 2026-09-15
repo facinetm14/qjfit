@@ -5,6 +5,7 @@ import type { CvContext } from "./cv-context.entity.js";
 function buildCvContext(overrides: Partial<CvContext> = {}): CvContext {
   return {
     targetRole: null,
+    hasExplicitTargetRole: false,
     techStack: [],
     seniority: null,
     location: null,

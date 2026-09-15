@@ -7,6 +7,7 @@ export interface CvSeniorityRange {
 
 export interface CvContext {
   readonly targetRole: string | null;
+  readonly hasExplicitTargetRole: boolean;
   readonly techStack: readonly string[];
   readonly seniority: CvSeniorityRange | null;
   readonly location: string | null;
