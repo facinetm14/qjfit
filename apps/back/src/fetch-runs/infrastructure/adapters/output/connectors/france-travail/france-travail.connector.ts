@@ -266,6 +266,14 @@ export class FranceTravailConnector implements FetchSourcePort {
         );
       }
 
+      // A scoped search (motsCles + commune/region + typeContrat) with zero
+      // matches comes back as 204 No Content with an empty body — verified
+      // live against the real API — not a 200 with `resultats: []`. There's
+      // no body to parse, and no further pages to fetch for this signature.
+      if (response.status === 204) {
+        break;
+      }
+
       const payload = await response.json();
       const parsed = franceTravailResponseSchema.safeParse(payload);
       if (!parsed.success) {

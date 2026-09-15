@@ -27,6 +27,7 @@ const baseFilters: JobFilters = {
   sources: ['france-travail', 'wttj-rss'],
   contracts: ['CDI', 'CDD', 'Freelance', 'Internship', 'Apprenticeship', 'Other'],
   remotePolicies: ['Full', 'Hybrid', 'OnSite'],
+  recencyWindow: 'all',
   sortOrder: 'score'
 };
 
@@ -58,6 +59,46 @@ describe('filterAndSortJobs', () => {
   it('never filters out a job with an unknown remote policy, even when no chip is selected', () => {
     const jobs = [buildJob({ id: '1', remote: 'Unknown' }), buildJob({ id: '2', remote: 'OnSite' })];
     const result = filterAndSortJobs(jobs, { ...baseFilters, remotePolicies: ['Full'] });
+    expect(result.map((j) => j.id)).toEqual(['1']);
+  });
+
+  it('includes every job when the recency window is "all"', () => {
+    const jobs = [buildJob({ id: '1', daysAgo: 0 }), buildJob({ id: '2', daysAgo: 30 })];
+    const result = filterAndSortJobs(jobs, { ...baseFilters, recencyWindow: 'all' });
+    expect(result.map((j) => j.id)).toEqual(['1', '2']);
+  });
+
+  it('narrows to jobs fetched within the last 24 hours', () => {
+    const jobs = [buildJob({ id: '1', daysAgo: 0 }), buildJob({ id: '2', daysAgo: 1 })];
+    const result = filterAndSortJobs(jobs, { ...baseFilters, recencyWindow: '24h' });
+    expect(result.map((j) => j.id)).toEqual(['1']);
+  });
+
+  it('narrows to jobs fetched within the last 3 days, including the boundary', () => {
+    const jobs = [buildJob({ id: '1', daysAgo: 3 }), buildJob({ id: '2', daysAgo: 4 })];
+    const result = filterAndSortJobs(jobs, { ...baseFilters, recencyWindow: '3d' });
+    expect(result.map((j) => j.id)).toEqual(['1']);
+  });
+
+  it('narrows to jobs fetched within the last 7 days, including the boundary', () => {
+    const jobs = [buildJob({ id: '1', daysAgo: 7 }), buildJob({ id: '2', daysAgo: 8 })];
+    const result = filterAndSortJobs(jobs, { ...baseFilters, recencyWindow: '7d' });
+    expect(result.map((j) => j.id)).toEqual(['1']);
+  });
+
+  it('narrows to jobs fetched within the last 14 days, including the boundary', () => {
+    const jobs = [buildJob({ id: '1', daysAgo: 14 }), buildJob({ id: '2', daysAgo: 15 })];
+    const result = filterAndSortJobs(jobs, { ...baseFilters, recencyWindow: '14d' });
+    expect(result.map((j) => j.id)).toEqual(['1']);
+  });
+
+  it('combines the recency window with the other active filters', () => {
+    const jobs = [
+      buildJob({ id: '1', daysAgo: 1, contract: 'CDI' }),
+      buildJob({ id: '2', daysAgo: 1, contract: 'Freelance' }),
+      buildJob({ id: '3', daysAgo: 10, contract: 'CDI' })
+    ];
+    const result = filterAndSortJobs(jobs, { ...baseFilters, recencyWindow: '3d', contracts: ['CDI'] });
     expect(result.map((j) => j.id)).toEqual(['1']);
   });
 

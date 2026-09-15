@@ -330,6 +330,68 @@ describe("FranceTravailConnector", () => {
       expect(result.jobs).toHaveLength(0);
     });
 
+    function response204() {
+      return {
+        ok: true,
+        status: 204,
+        headers: { get: (name: string) => (name === "Content-Range" ? "*/0" : null) },
+        json: async () => {
+          throw new SyntaxError("Unexpected end of JSON input");
+        },
+      };
+    }
+
+    it("treats a 204 No Content response (zero matches for a scoped query) as zero results instead of throwing", async () => {
+      // Verified live against the real API: a scoped search (motsCles +
+      // commune + typeContrat) with zero matches returns 204 with an empty
+      // body and `Content-Range: */0` — not a 200 with `resultats: []`.
+      // Calling .json() on that body throws "Unexpected end of JSON input".
+      const calls: string[] = [];
+      const fetcher = async (url: string) => {
+        calls.push(url);
+        return response204();
+      };
+      const connector = new FranceTravailConnector(
+        { baseUrl: "https://api.test", pageSize: 50, fetcher },
+        buildAuthClient(),
+      );
+      const scopedQuery: FetchSourceQuery = {
+        targetRole: "Full Stack Developer",
+        location: "Nantes",
+        contractTypes: ["CDD"],
+      };
+
+      const result = await connector.fetch("run-1", scopedQuery);
+
+      expect(calls).toEqual([
+        "https://api.test/offres/search?range=0-49&motsCles=Full+Stack+Developer&commune=44109&typeContrat=CDD",
+      ]);
+      expect(result.jobs).toHaveLength(0);
+    });
+
+    it("preserves jobs already collected from earlier pages when a later page returns 204", async () => {
+      const calls: string[] = [];
+      const fetcher = async (url: string) => {
+        calls.push(url);
+        if (calls.length === 1) {
+          return response(pageOf(50), { contentRange: "offres 0-49/100" });
+        }
+        return response204();
+      };
+      const connector = new FranceTravailConnector(
+        { baseUrl: "https://api.test", pageSize: 50, fetcher, sleep: noopSleep },
+        buildAuthClient(),
+      );
+
+      const result = await connector.fetch("run-1");
+
+      expect(calls).toEqual([
+        "https://api.test/offres/search?range=0-49",
+        "https://api.test/offres/search?range=50-99",
+      ]);
+      expect(result.jobs).toHaveLength(50);
+    });
+
     it("throttles page requests to stay within the 10 req/s France Travail rate limit", async () => {
       const fetcher = async (url: string) => {
         const offset = Number(url.split("range=")[1]?.split("-")[0] ?? 0);
