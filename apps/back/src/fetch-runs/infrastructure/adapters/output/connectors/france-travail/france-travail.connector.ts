@@ -7,6 +7,7 @@ import type {
 } from "../../../../../application/ports/fetch-source.port.js";
 import type { RawJob } from "@shared/domain/raw-job.entity.js";
 import type { ContractType } from "@shared/domain/contract-type.js";
+import { toErrorMessage } from "@shared/domain/to-error-message.js";
 import { parseDate } from "../shared/parse-date.js";
 import { TYPES } from "@composition-root/container/types.js";
 import { FranceTravailAuthClient } from "./france-travail-auth.client.js";
@@ -242,6 +243,7 @@ export class FranceTravailConnector implements FetchSourcePort {
     const jobs: RawJob[] = [];
     let offset = 0;
     let isFirstRequest = true;
+    let warning: string | null = null;
 
     while (offset <= MAX_NAVIGABLE_LAST_INDEX) {
       if (!isFirstRequest) {
@@ -250,52 +252,68 @@ export class FranceTravailConnector implements FetchSourcePort {
 
       isFirstRequest = false;
 
+      const pageOffset = offset;
       const rangeEnd = Math.min(offset + pageSize - 1, MAX_NAVIGABLE_LAST_INDEX);
       const requestedCount = rangeEnd - offset + 1;
       const url = `${this.options.baseUrl}/offres/search?range=${offset}-${rangeEnd}${scopedQueryParams}`;
-      const response = await this.fetchWithRetry(
-        fetcher,
-        url,
-        { Authorization: `Bearer ${accessToken}` },
-        sleep,
-      );
 
-      if (!response.ok) {
-        throw new Error(
-          `France Travail request failed with status ${response.status}`,
+      try {
+        const response = await this.fetchWithRetry(
+          fetcher,
+          url,
+          { Authorization: `Bearer ${accessToken}` },
+          sleep,
         );
-      }
 
-      // A scoped search (motsCles + commune/region + typeContrat) with zero
-      // matches comes back as 204 No Content with an empty body — verified
-      // live against the real API — not a 200 with `resultats: []`. There's
-      // no body to parse, and no further pages to fetch for this signature.
-      if (response.status === 204) {
-        break;
-      }
+        if (!response.ok) {
+          throw new Error(
+            `France Travail request failed with status ${response.status}`,
+          );
+        }
 
-      const payload = await response.json();
-      const parsed = franceTravailResponseSchema.safeParse(payload);
-      if (!parsed.success) {
-        throw new Error("France Travail response payload is invalid");
-      }
+        // A scoped search (motsCles + commune/region + typeContrat) with zero
+        // matches comes back as 204 No Content with an empty body — verified
+        // live against the real API — not a 200 with `resultats: []`. There's
+        // no body to parse, and no further pages to fetch for this signature.
+        if (response.status === 204) {
+          break;
+        }
 
-      const pageJobs = parsed.data.resultats
-        .map((offer) => this.toRawJob(offer))
-        .filter((job): job is RawJob => job !== null);
-      jobs.push(...pageJobs);
+        const payload = await response.json();
+        const parsed = franceTravailResponseSchema.safeParse(payload);
+        if (!parsed.success) {
+          throw new Error("France Travail response payload is invalid");
+        }
 
-      const total = parseContentRangeTotal(response);
-      offset += pageSize;
+        const pageJobs = parsed.data.resultats
+          .map((offer) => this.toRawJob(offer))
+          .filter((job): job is RawJob => job !== null);
+        jobs.push(...pageJobs);
 
-      const receivedFullPage = parsed.data.resultats.length >= requestedCount;
-      const reachedKnownTotal = total !== null && offset >= total;
-      if (!receivedFullPage || reachedKnownTotal) {
+        const total = parseContentRangeTotal(response);
+        offset += pageSize;
+
+        const receivedFullPage = parsed.data.resultats.length >= requestedCount;
+        const reachedKnownTotal = total !== null && offset >= total;
+        if (!receivedFullPage || reachedKnownTotal) {
+          break;
+        }
+      } catch (error) {
+        // The first page failing means this source produced nothing at all
+        // — propagate so the fetch-run orchestrator logs a failed source
+        // (AGENTS.md rule 6). A later page failing after earlier pages
+        // already succeeded is a partial success: keep what's already
+        // collected instead of discarding it, and surface why via
+        // `warning` so the caller can record it on fetch_logs.
+        if (pageOffset === 0) {
+          throw error;
+        }
+        warning = `France Travail pagination stopped at offset ${pageOffset}: ${toErrorMessage(error)}`;
         break;
       }
     }
 
-    return { jobs };
+    return warning ? { jobs, warning } : { jobs };
   }
 
   private async fetchWithRetry(

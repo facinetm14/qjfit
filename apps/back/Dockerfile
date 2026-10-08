@@ -18,7 +18,7 @@ FROM base AS deps
 COPY package.json yarn.lock ./
 COPY apps/back/package.json apps/back/package.json
 COPY apps/back/prisma apps/back/prisma
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
+RUN --mount=type=cache,id=yarn-cache,target=/usr/local/share/.cache/yarn,sharing=locked \
     yarn install --frozen-lockfile --ignore-scripts
 RUN yarn workspace @qjfit/back prisma:generate
 
@@ -57,7 +57,7 @@ RUN yarn workspace @qjfit/back build
 # copied in from a differently-built stage.
 # ---------------------------------------------------------------------------
 FROM deps AS prod-deps
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
+RUN --mount=type=cache,id=yarn-cache,target=/usr/local/share/.cache/yarn,sharing=locked \
     yarn install --frozen-lockfile --ignore-scripts --production
 
 # ---------------------------------------------------------------------------

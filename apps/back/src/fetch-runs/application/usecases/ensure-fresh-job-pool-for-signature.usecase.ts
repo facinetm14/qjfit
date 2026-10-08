@@ -7,6 +7,7 @@ import type { FetchSourceQuery } from "../ports/fetch-source.port.js";
 import { FETCH_FRESHNESS_WINDOW_MS } from "../../domain/fetch-freshness-policy.js";
 import { FetchFailedWithNoCacheError } from "../../domain/errors/fetch-failed-no-cache.error.js";
 import { PORT_TYPES } from "@shared/application/tokens.js";
+import { toErrorMessage } from "@shared/domain/to-error-message.js";
 
 export interface EnsureFreshJobPoolForSignatureInput {
   readonly querySignature: string;
@@ -18,10 +19,6 @@ export interface EnsureFreshJobPoolForSignatureInput {
 
 export interface EnsureFreshJobPoolForSignaturePort {
   execute(input: EnsureFreshJobPoolForSignatureInput): Promise<void>;
-}
-
-function toErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Unknown error";
 }
 
 function isFresh(lastFetchedAt: Date | null, now: Date): boolean {

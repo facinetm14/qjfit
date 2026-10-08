@@ -6,13 +6,7 @@ import type { LoggerPort } from "@shared/application/ports/logger.port.js";
 import type { NormalizeAndPersistJobsPort } from "@jobs/application/usecases/normalize-and-persist-jobs.usecase.js";
 import type { FetchRun } from "../../domain/fetch-run.entity.js";
 import { PORT_TYPES } from "@shared/application/tokens.js";
-
-function toErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return "Unknown error";
-}
+import { toErrorMessage } from "@shared/domain/to-error-message.js";
 
 export interface ExecuteFetchRunLifecyclePort {
   execute(
@@ -47,12 +41,24 @@ export class ExecuteFetchRunLifecycleUseCase
     const startedAt = new Date();
     await this.fetchRunsRepository.markRunning(runId, startedAt);
     try {
-      const { succeededCount } = await this.runSources(runId, query);
+      const { succeededCount, hadWarnings } = await this.runSources(runId, query);
       const endedAt = new Date();
       if (succeededCount === 0) {
         this.logger.error(
           { runId },
           "All fetch sources failed; marking run as failed",
+        );
+        return await this.fetchRunsRepository.markFailed(runId, endedAt);
+      }
+      if (hadWarnings) {
+        // A source returned a partial result (e.g. pagination cut short) —
+        // the pool for this query signature isn't fully refreshed, so the
+        // run must not be "completed": EnsureFreshJobPoolForSignatureUseCase
+        // only caches freshness on a completed run, and caching it here
+        // would skip retrying the gap for the whole freshness window.
+        this.logger.error(
+          { runId },
+          "A fetch source returned a partial result; marking run as failed so freshness isn't cached",
         );
         return await this.fetchRunsRepository.markFailed(runId, endedAt);
       }
@@ -67,8 +73,9 @@ export class ExecuteFetchRunLifecycleUseCase
   private async runSources(
     runId: string,
     query: FetchSourceQuery | null,
-  ): Promise<{ succeededCount: number }> {
+  ): Promise<{ succeededCount: number; hadWarnings: boolean }> {
     let succeededCount = 0;
+    let hadWarnings = false;
     for (const source of this.fetchSources) {
       try {
         const result = await source.fetch(runId, query);
@@ -77,10 +84,13 @@ export class ExecuteFetchRunLifecycleUseCase
           runId,
           source: source.source,
           status: "success",
-          message: null,
+          message: result.warning ?? null,
           fetched: result.jobs.length,
         });
         succeededCount += 1;
+        if (result.warning) {
+          hadWarnings = true;
+        }
       } catch (error) {
         this.logger.error(
           { runId, source: source.source, err: error },
@@ -95,6 +105,6 @@ export class ExecuteFetchRunLifecycleUseCase
         });
       }
     }
-    return { succeededCount };
+    return { succeededCount, hadWarnings };
   }
 }

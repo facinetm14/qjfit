@@ -3,6 +3,11 @@ import type { ContractType } from "@shared/domain/contract-type.js";
 
 export interface FetchSourceResult {
   readonly jobs: readonly RawJob[];
+  // Set when a multi-request fetch (e.g. pagination) was cut short by a
+  // later request failing after some jobs were already collected — still a
+  // partial success (AGENTS.md rule 6), not a thrown error. Surfaced to
+  // fetch_logs' message column by the caller instead of being logged here.
+  readonly warning?: string | null;
 }
 
 // Derived from the query signature's triggering CV context (ADR 0021 §1/§7,

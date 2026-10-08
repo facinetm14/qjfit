@@ -412,6 +412,71 @@ describe("FranceTravailConnector", () => {
 
       expect(sleepCalls).toEqual([100, 100]);
     });
+
+    it("keeps jobs already fetched from earlier pages when a later page request fails, and reports a warning instead of throwing", async () => {
+      const calls: string[] = [];
+      const fetcher = async (url: string) => {
+        calls.push(url);
+        if (calls.length === 1) {
+          return response(pageOf(50), { contentRange: "offres 0-49/150" });
+        }
+        return response({ error: "server error" }, { ok: false, status: 500 });
+      };
+      const connector = new FranceTravailConnector(
+        { baseUrl: "https://api.test", pageSize: 50, fetcher, sleep: noopSleep },
+        buildAuthClient(),
+      );
+
+      const result = await connector.fetch("run-1");
+
+      expect(calls).toEqual([
+        "https://api.test/offres/search?range=0-49",
+        "https://api.test/offres/search?range=50-99",
+      ]);
+      expect(result.jobs).toHaveLength(50);
+      expect(result.warning).toMatch(/offset 50/);
+      expect(result.warning).toMatch(/500/);
+    });
+
+    it("keeps jobs already fetched from earlier pages when a later page exhausts its network-error retries, and reports a warning", async () => {
+      const calls: string[] = [];
+      const fetcher = async (url: string) => {
+        calls.push(url);
+        if (calls.length === 1) {
+          return response(pageOf(50), { contentRange: "offres 0-49/150" });
+        }
+        throw new TypeError("fetch failed: ECONNRESET");
+      };
+      const connector = new FranceTravailConnector(
+        {
+          baseUrl: "https://api.test",
+          pageSize: 50,
+          fetcher,
+          sleep: noopSleep,
+          maxRetries: 1,
+        },
+        buildAuthClient(),
+      );
+
+      const result = await connector.fetch("run-1");
+
+      expect(result.jobs).toHaveLength(50);
+      expect(result.warning).toMatch(/offset 50/);
+      expect(result.warning).toMatch(/ECONNRESET/);
+    });
+
+    it("still throws when the very first page fails, since no jobs were collected at all", async () => {
+      const fetcher = async () =>
+        response({ error: "server error" }, { ok: false, status: 500 });
+      const connector = new FranceTravailConnector(
+        { baseUrl: "https://api.test", pageSize: 50, fetcher, sleep: noopSleep },
+        buildAuthClient(),
+      );
+
+      await expect(connector.fetch("run-1")).rejects.toThrow(
+        "France Travail request failed with status 500",
+      );
+    });
   });
 
   describe("query-scoped requests (ADR 0021, issue #26)", () => {

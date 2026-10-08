@@ -11,7 +11,7 @@ RUN corepack enable
 FROM base AS deps
 COPY package.json yarn.lock ./
 COPY apps/front/package.json apps/front/package.json
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
+RUN --mount=type=cache,id=yarn-cache,target=/usr/local/share/.cache/yarn,sharing=locked \
     yarn install --frozen-lockfile --ignore-scripts
 
 # ---------------------------------------------------------------------------

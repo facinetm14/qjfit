@@ -2,6 +2,7 @@ import { inject, injectable } from "inversify";
 import type { ScoringProviderPort } from "../ports/scoring-provider.port.js";
 import type { EmbeddingProviderPort } from "../ports/embedding-provider.port.js";
 import type { LoggerPort } from "@shared/application/ports/logger.port.js";
+import { toErrorMessage } from "@shared/domain/to-error-message.js";
 import type { CvContext } from "@cv/domain/cv-context.entity.js";
 import type { Job } from "@jobs/domain/job.entity.js";
 import type { ScoredJob } from "../../domain/scored-job.entity.js";
@@ -33,13 +34,6 @@ export interface ScoreMatchCandidatesOptions {
 
 export interface ScoreMatchCandidatesPort {
   execute(input: ScoreMatchCandidatesInput): Promise<readonly ScoredJob[]>;
-}
-
-function toErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return "Unknown error";
 }
 
 @injectable()

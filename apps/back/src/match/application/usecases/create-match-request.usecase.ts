@@ -19,6 +19,7 @@ import { buildQuerySignature } from "@fetch-runs/domain/query-signature.js";
 import type { EnsureFreshJobPoolForSignaturePort } from "@fetch-runs/application/usecases/ensure-fresh-job-pool-for-signature.usecase.js";
 import type { FetchSourceQuery } from "@fetch-runs/application/ports/fetch-source.port.js";
 import { PORT_TYPES } from "@shared/application/tokens.js";
+import { toErrorMessage } from "@shared/domain/to-error-message.js";
 
 export interface CreateMatchRequestInput {
   readonly cvFile: CvFile;
@@ -29,13 +30,6 @@ export interface CreateMatchRequestInput {
 export interface CreateMatchRequestOutput {
   readonly ticketId: string;
   readonly remaining: number;
-}
-
-function toErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return "Unknown error";
 }
 
 @injectable()

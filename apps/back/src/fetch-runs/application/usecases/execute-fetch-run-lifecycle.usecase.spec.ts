@@ -138,6 +138,17 @@ class SucceedingFetchSource implements FetchSourcePort {
   }
 }
 
+class PartiallySucceedingFetchSource implements FetchSourcePort {
+  readonly source = "partial-source";
+
+  async fetch(): Promise<FetchSourceResult> {
+    return {
+      jobs: [buildRawJob({ source: this.source, sourceJobId: "job-1" })],
+      warning: "France Travail pagination stopped at offset 50: boom",
+    };
+  }
+}
+
 class FailingFetchSource implements FetchSourcePort {
   readonly source = "failing-source";
 
@@ -198,6 +209,50 @@ describe("ExecuteFetchRunLifecycleUseCase (integration)", () => {
       runId: fetchRunsRepository.run.id,
       source: "failing-source",
     });
+  });
+
+  it("records a source's partial-fetch warning as the fetch_logs message, keeps the jobs it already collected, but marks the run failed so freshness isn't cached on a truncated pool", async () => {
+    const fetchRunsRepository = new FakeFetchRunsRepository();
+    const fetchLogsRepository = new FakeFetchLogsRepository();
+    const jobsRepository = new FakeJobsRepository();
+    const logger = new FakeLogger();
+    const normalizeAndPersistJobs = new NormalizeAndPersistJobsUseCase(
+      jobsRepository,
+    );
+    const lifecycle = new ExecuteFetchRunLifecycleUseCase(
+      fetchRunsRepository,
+      fetchLogsRepository,
+      [new PartiallySucceedingFetchSource()],
+      normalizeAndPersistJobs,
+      logger,
+    );
+
+    await lifecycle.execute();
+
+    // Jobs already fetched before the partial failure are still persisted
+    // into the shared pool (AGENTS.md rule 6) ...
+    expect(jobsRepository.created).toHaveLength(1);
+    const partialLog = fetchLogsRepository.logs.find(
+      (log) => log.source === "partial-source",
+    );
+    expect(partialLog).toMatchObject({
+      status: "success",
+      fetched: 1,
+      message: "France Travail pagination stopped at offset 50: boom",
+    });
+
+    // ... but the run itself is NOT "completed": a completed run is what
+    // EnsureFreshJobPoolForSignatureUseCase treats as a trustworthy full
+    // refresh and caches as fresh for the whole freshness window. A
+    // truncated fetch must not short-circuit the next request's retry.
+    expect(fetchRunsRepository.run.status).toBe("failed");
+    expect(
+      logger.errors.some(
+        (entry) =>
+          entry.message ===
+          "A fetch source returned a partial result; marking run as failed so freshness isn't cached",
+      ),
+    ).toBe(true);
   });
 
   it("records the query signature on the run and returns the completed run", async () => {
