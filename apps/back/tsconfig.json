@@ -6,16 +6,15 @@
     "types": ["node", "jest", "reflect-metadata"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "baseUrl": ".",
     "paths": {
-      "@cv/*": ["src/cv/*"],
-      "@fetch-runs/*": ["src/fetch-runs/*"],
-      "@jobs/*": ["src/jobs/*"],
-      "@match/*": ["src/match/*"],
-      "@rate-limiting/*": ["src/rate-limiting/*"],
-      "@scoring/*": ["src/scoring/*"],
-      "@shared/*": ["src/shared/*"],
-      "@composition-root/*": ["src/composition-root/*"]
+      "@cv/*": ["./src/cv/*"],
+      "@fetch-runs/*": ["./src/fetch-runs/*"],
+      "@jobs/*": ["./src/jobs/*"],
+      "@match/*": ["./src/match/*"],
+      "@rate-limiting/*": ["./src/rate-limiting/*"],
+      "@scoring/*": ["./src/scoring/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@composition-root/*": ["./src/composition-root/*"]
     }
   },
   "include": ["src"],
