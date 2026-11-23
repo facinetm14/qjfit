@@ -1,6 +1,12 @@
 # QJFit
 
-QJFit is a web app that aggregates daily job offers from multiple sources and hand back a scored ranked shortlist.
+QJFit collects job postings and ranks them against a candidate’s CV. The backend narrows the candidate set before asking a scoring provider to explain individual matches.
+
+## Follow one offer
+
+The [scoring tests](apps/back/src/scoring/application/usecases/score-match-candidates.usecase.spec.ts) use a fictional Backend Engineer opening at Acme in Paris. Its description mentions TypeScript, which also appears in the candidate’s skills. The fixture gives the offer a score of 80 and records TypeScript as a match reason. That value comes from a test double. A live provider can return a different assessment.
+
+Start with the [scoring use case](apps/back/src/scoring/application/usecases/score-match-candidates.usecase.ts) to see how job and CV inputs reach the provider, then inspect the tests to see which behavior the application controls.
 
 ## Tech Stack
 
